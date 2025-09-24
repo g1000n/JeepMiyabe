@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'routes.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -57,8 +58,10 @@ class MapSampleState extends State<MapSample> {
               target: _center,
               zoom: 14.0,
             ),
+            polylines: Set<Polyline>.of(jeepneyRoutes), // <-- add this
             myLocationButtonEnabled: false,
           ),
+
           // Floating search bar
           Positioned(
             top: 50,
@@ -72,7 +75,8 @@ class MapSampleState extends State<MapSample> {
                 decoration: InputDecoration(
                   hintText: "Search routes...",
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   prefixIcon: const Icon(Icons.search),
                 ),
               ),
