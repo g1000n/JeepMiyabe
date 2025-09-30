@@ -32,3 +32,4 @@ flutter:
   # ✅ Add .env as an asset so dotenv can read it
   assets:
     - .env
+    - assets/data/
