@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  supabase_flutter: ^2.0.8
 
   cupertino_icons: ^1.0.8
 
@@ -32,4 +33,4 @@ flutter:
   # ✅ Add .env as an asset so dotenv can read it
   assets:
     - .env
-    - assets/data/
+    - assets/
