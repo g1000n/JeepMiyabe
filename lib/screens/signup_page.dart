@@ -14,9 +14,70 @@ class _SignUpPageState extends State<SignUpPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
+  
   bool _passwordHidden = true; // password visibility toggle
   bool _confirmPasswordHidden = true; // confirm password visibility toggle
+  bool _loading = false; // loading state
+
+  Future<void> _signUp() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
+
+    try {
+      final response = await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: 'io.supabase.flutterdemo://login-callback/',
+      );
+
+      if (response.user != null) {
+        // Insert into profile table
+        await Supabase.instance.client.from('profiles').insert({
+          'id': response.user!.id,
+          'username': username,
+          'email': email,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Account created! Please check your email to verify.")),
+          );
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+
+    setState(() => _loading = false);
+  }
+
+
+
+  //Style
+  InputDecoration _inputDecoration(String hint, {Widget? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      suffixIcon: suffix,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,16 +89,13 @@ class _SignUpPageState extends State<SignUpPage> {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Back button
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Color(0xFFE4572E)),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -66,25 +124,13 @@ class _SignUpPageState extends State<SignUpPage> {
                     fontSize: 14,
                     color: Colors.orange,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 30),
 
                 // Email
                 TextFormField(
                   controller: _emailController,
-                  decoration: InputDecoration(
-                    hintText: "Email",
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
+                  decoration: _inputDecoration("Email"),
                   validator: (value) => (value == null || value.isEmpty) ? "Enter your email" : null,
                 ),
                 const SizedBox(height: 15),
@@ -92,18 +138,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 // Username
                 TextFormField(
                   controller: _usernameController,
-                  decoration: InputDecoration(
-                    hintText: "Username",
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
+                  decoration: _inputDecoration("Username"),
                   validator: (value) => (value == null || value.isEmpty) ? "Enter your username" : null,
                 ),
                 const SizedBox(height: 15),
@@ -112,27 +147,14 @@ class _SignUpPageState extends State<SignUpPage> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _passwordHidden,
-                  decoration: InputDecoration(
-                    hintText: "Password",
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    suffixIcon: IconButton(
+                  decoration: _inputDecoration(
+                    "Password",
+                    suffix: IconButton(
                       icon: Icon(
                         _passwordHidden ? Icons.visibility_off : Icons.visibility,
                         color: const Color(0xFFE4572E),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _passwordHidden = !_passwordHidden;
-                        });
-                      },
+                      onPressed: () => setState(() => _passwordHidden = !_passwordHidden),
                     ),
                   ),
                   validator: (value) => (value == null || value.isEmpty) ? "Enter your password" : null,
@@ -143,45 +165,29 @@ class _SignUpPageState extends State<SignUpPage> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _confirmPasswordHidden,
-                  decoration: InputDecoration(
-                    hintText: "Confirm Password",
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    suffixIcon: IconButton(
+                  decoration: _inputDecoration(
+                    "Confirm Password",
+                    suffix: IconButton(
                       icon: Icon(
                         _confirmPasswordHidden ? Icons.visibility_off : Icons.visibility,
                         color: const Color(0xFFE4572E),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _confirmPasswordHidden = !_confirmPasswordHidden;
-                        });
-                      },
+                      onPressed: () => setState(() => _confirmPasswordHidden = !_confirmPasswordHidden),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Confirm your password";
-                    }
-                    if (value != _passwordController.text) {
-                      return "Passwords do not match";
-                    }
+                    if (value == null || value.isEmpty) return "Confirm your password";
+                    if (value != _passwordController.text) return "Passwords do not match";
                     return null;
                   },
                 ),
-                const SizedBox(height: 30),
+                  const SizedBox(height: 30),
 
                 // Sign Up button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    onPressed: _loading ? null : _signUp,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE4572E),
                       shape: RoundedRectangleBorder(
@@ -189,51 +195,12 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        final email = _emailController.text.trim();
-                        final password = _passwordController.text.trim();
-                        final username = _usernameController.text.trim();
-
-                        try {
-                          final response = await Supabase.instance.client.auth.signUp(
-                            email: email,
-                            password: password,
-                            emailRedirectTo: 'io.supabase.flutterdemo://login-callback/',
-                          );
-
-                          if (response.user != null) {
-                            // Insert into profile table
-                            await Supabase.instance.client.from('profiles').insert({
-                              'id': response.user!.id,
-                              'username': username,
-                              'email': email,
-                              'created_at': DateTime.now().toIso8601String(),
-                            });
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  "Account created! Please check your email to verify.",
-                                ),
-                              ),
-                            );
-
-                            Navigator.pop(context);
-                          }
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error: $e")),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text(
-                      "Sign Up",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Sign Up", style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
+
                 const SizedBox(height: 20),
 
                 // Already have account? Log In

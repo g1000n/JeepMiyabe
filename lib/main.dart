@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/welcome_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/login_page.dart';
+import 'screens/mfa_page.dart';
 import 'map_screen.dart'; // Import your new MapScreen
 
 Future<void> main() async{
@@ -34,6 +35,10 @@ class JeepMiyabeApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/signup': (context) =>  const SignUpPage(),
         '/dashboard': (context) => const PlaceholderPage(title: 'Dashboard'), //TODO: change with actual dashboard
+        '/mfa': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as String;
+          return MFAPage(email: args);
+        },
         '/map': (context) => const MapScreen(),
       },
     );
