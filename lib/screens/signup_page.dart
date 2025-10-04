@@ -208,7 +208,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               'id': response.user!.id,
                               'username': username,
                               'email': email,
-                              'password': password,
                               'created_at': DateTime.now().toIso8601String(),
                             });
 
