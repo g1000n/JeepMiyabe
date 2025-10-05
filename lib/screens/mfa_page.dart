@@ -1,3 +1,5 @@
+// ignore for now
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -55,9 +57,17 @@ class _MFAPageState extends State<MFAPage> {
               const SizedBox(height: 20),
               TextField(
                 controller: _otpController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: "6-digit code",
-                  border: OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFE4572E), width: 2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFFE4572E), width: 2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               if (_errorMessage != null) ...[

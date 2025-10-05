@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/splash_page.dart';
 import 'screens/welcome_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/login_page.dart';
@@ -30,8 +31,11 @@ class JeepMiyabeApp extends StatelessWidget {
         primarySwatch: Colors.orange,
         fontFamily: 'Afacad',
       ),
-      home: const WelcomePage(),
+      //home: const WelcomePage(), Welcome page initial route
+      initialRoute: '/', //Initial route set to SplashPage
       routes: {
+        '/': (context) => const SplashPage(),
+        '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) =>  const SignUpPage(),
         '/dashboard': (context) => const PlaceholderPage(title: 'Dashboard'), //TODO: change with actual dashboard
