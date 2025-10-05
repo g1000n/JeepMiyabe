@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'welcome_screen.dart';
+import 'welcome_page.dart';
 
 class LogoPage extends StatelessWidget {
   const LogoPage({super.key});
@@ -12,7 +12,7 @@ class LogoPage extends StatelessWidget {
           // Navigate to WelcomeScreen when tapped
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+            MaterialPageRoute(builder: (context) => const WelcomePage()),
           );
         },
         child: Container(
