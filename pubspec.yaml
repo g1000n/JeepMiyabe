@@ -14,23 +14,26 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # ✅ Google Maps Flutter
+  # --- Map and Routing Dependencies ---
   google_maps_flutter: ^2.9.0
-
-  # ✅ dotenv for hiding API keys
   flutter_dotenv: ^5.1.0
-
-  # ✅ recommended linting rules
-  flutter_lints: ^5.0.0
-
+  collection: ^1.18.0
+  
+  # FIX: Added geolocator to enable GPS functions in map_screen.dart
+  geolocator: ^10.1.0 
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  
+  # FIX: Moved linting rules to dev_dependencies (where they belong)
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
 
-  # ✅ Add .env as an asset so dotenv can read it
   assets:
     - .env
+    # FIX: Added explicit assets/data/ folder needed for loading routes_data.json
+    - assets/data/
     - assets/
