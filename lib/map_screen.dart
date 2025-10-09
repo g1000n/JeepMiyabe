@@ -5,7 +5,7 @@ import 'dart:collection';
 // Local Project Files (Assuming these contain Node, Edge, Network, and utilities)
 import 'jeepney_network_data.dart'; // Contains allNodes and jeepneyNetwork
 import 'graph_models.dart';        // Contains Node, Edge, etc.
-import 'geo_utils.dart';           // Contains coordinate utilities
+import 'geo_utils.dart';           // Contains coordinate utilities, including calculateStaggeredPoints
 import 'route_segment.dart';       // Defines the RouteSegment model and SegmentType enum
 import 'route_finder.dart';        // The A* pathfinding logic
 
@@ -82,11 +82,15 @@ class _MapScreenState extends State<MapScreen> {
     _loadNetworkVisualization();
   }
 
+  /// Loads all static jeepney routes onto the map.
+  /// This function uses the `calculateStaggeredPoints` utility (assumed to be in geo_utils.dart)
+  /// to slightly offset overlapping routes, minimizing visual clutter.
   void _loadNetworkVisualization() {
     _polylines.clear();
     _markers.clear();
     _currentRoute.clear();
 
+    // 1. Load Node Markers
     for (var node in allNodes.values) {
       _markers.add(
         Marker(
@@ -98,10 +102,13 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
+    // 2. Load Edge Polylines (using staggering/splaying technique)
     final Map<String, List<Edge>> sharedSegments = {};
 
+    // Group edges that share the same start-end coordinates
     for (var edges in jeepneyNetwork.adjacencyList.values) {
       for (var edge in edges) {
+        // Create a canonical key for the segment (e.g., 'NODE_A-NODE_B')
         final key = '${edge.startNodeId}-${edge.endNodeId}';
         sharedSegments.putIfAbsent(key, () => []).add(edge);
       }
@@ -114,6 +121,8 @@ class _MapScreenState extends State<MapScreen> {
       for (int i = 0; i < totalSegments; i++) {
         final edge = edges[i];
 
+        // This utility shifts the polyline laterally based on its index (i)
+        // and the total number of shared routes (totalSegments)
         final List<LatLng> staggeredPoints = calculateStaggeredPoints(
           edge.polylinePoints,
           i,
@@ -124,9 +133,9 @@ class _MapScreenState extends State<MapScreen> {
           Polyline(
             polylineId: PolylineId('network_route_$polylineIndex'),
             points: staggeredPoints,
-            color: edge.routeColor.withOpacity(0.5),
+            color: edge.routeColor.withOpacity(0.5), // Lighter color for background network
             width: 3,
-            zIndex: 1,
+            zIndex: 1, // Low Z-index so the calculated route draws on top
           ),
         );
         polylineIndex++;
@@ -193,11 +202,14 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _isSearching = true;
       _currentRoute.clear();
-      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
+      // CRITICAL FIX: Only clear the previously calculated route result ('result_'), 
+      // DO NOT clear the 'network_' polylines, which represent the full route visualization.
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
     });
 
     try {
+      // Assuming RouteFinder.findPathWithGPS returns a list of segments, 
+      // each with the detailed LatLng path that follows the roads.
       final segments = await _routeFinder.findPathWithGPS(_startPoint!, _endPoint!);
 
       setState(() {
@@ -233,7 +245,8 @@ class _MapScreenState extends State<MapScreen> {
       _currentRoute.clear();
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
       _updateMarkers();
-      _loadNetworkVisualization();
+      // Reloading the visualization ensures all nodes and edges are visible if they were somehow cleared.
+      _loadNetworkVisualization(); 
     });
   }
 
@@ -245,11 +258,12 @@ class _MapScreenState extends State<MapScreen> {
           polylineId: PolylineId('result_${index++}'),
           points: segment.path,
           color: segment.color,
+          // Make the walking segments dashed and thin, and jeepney segments solid and thick
           width: segment.type == SegmentType.WALK ? 3 : 6,
           patterns: segment.type == SegmentType.WALK
               ? [PatternItem.dash(10), PatternItem.gap(5)]
               : const <PatternItem>[],
-          zIndex: 10,
+          zIndex: 10, // High Z-index ensures it draws on top of the 'network_' polylines (Z=1)
         ),
       );
     }
