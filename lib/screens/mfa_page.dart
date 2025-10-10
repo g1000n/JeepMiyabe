@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/auth_storage.dart';  // Adjust path to your AuthStorage file (from MFA cooldown solution)
 
 class MFAPage extends StatefulWidget {
   final String email;
@@ -17,7 +18,6 @@ class _MFAPageState extends State<MFAPage> {
   bool _canResend = false;
   int _secondsLeft = 60;
   Timer? _timer;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -53,33 +53,42 @@ class _MFAPageState extends State<MFAPage> {
   Future<void> _resendOTP() async {
     setState(() {
       _loading = true;
-      _errorMessage = null;
     });
 
     try {
       await Supabase.instance.client.auth.signInWithOtp(email: widget.email);
       _startCountdown();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("A new OTP has been sent to your email."),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (_) {
-      setState(() => _errorMessage = "Failed to resend OTP. Please try again.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("A new OTP has been sent to your email."),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to resend OTP. Please try again."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
-    setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
-  // Verify OTP (unchanged backend logic)
+  // Verify OTP
   Future<void> _verifyOTP() async {
     final otp = _otpController.text.trim();
-    if (otp.isEmpty) return;
+    if (otp.isEmpty || otp.length != 6) return;
 
     setState(() {
       _loading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -89,18 +98,42 @@ class _MFAPageState extends State<MFAPage> {
         type: OtpType.email,
       );
 
-      if (response.user != null) {
+      if (response.user != null && mounted) {
+        // Save MFA success for 7-day cooldown
+        await AuthStorage.saveMFASuccess();
+        
         Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        setState(() => _errorMessage = "Invalid or expired code.");
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Invalid or expired code."),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } on AuthException catch (e) {
-      setState(() => _errorMessage = e.message);
-    } catch (_) {
-      setState(() => _errorMessage = "OTP verification failed.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? "OTP verification failed."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("OTP verification failed."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
-    setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -113,43 +146,45 @@ class _MFAPageState extends State<MFAPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                "Enter the 6-digit code sent to your email",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Color(0xFFE4572E),
-                  fontWeight: FontWeight.w600,
+              Semantics(
+                label: 'Enter the 6-digit verification code sent to ${widget.email}',
+                child: const Text(
+                  "Enter the 6-digit code sent to your email",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Color(0xFFE4572E),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
 
-              // 🔢 6 separate OTP boxes
-              PinCodeTextField(
-                appContext: context,
-                length: 6,
-                controller: _otpController,
-                animationType: AnimationType.fade,
-                keyboardType: TextInputType.number,
-                pinTheme: PinTheme(
-                  shape: PinCodeFieldShape.box,
-                  borderRadius: BorderRadius.circular(10),
-                  fieldHeight: 50,
-                  fieldWidth: 45,
-                  inactiveColor: const Color(0xFFE4572E).withOpacity(0.5),
-                  activeColor: const Color(0xFFE4572E),
-                  selectedColor: const Color(0xFFE4572E),
+              // 6 separate OTP boxes with auto-verify on complete
+              Semantics(
+                label: 'OTP input fields',
+                child: PinCodeTextField(
+                  appContext: context,
+                  length: 6,
+                  controller: _otpController,
+                  animationType: AnimationType.fade,
+                  keyboardType: TextInputType.number,
+                  pinTheme: PinTheme(
+                    shape: PinCodeFieldShape.box,
+                    borderRadius: BorderRadius.circular(10),
+                    fieldHeight: 50,
+                    fieldWidth: 45,
+                    inactiveColor: const Color(0xFFE4572E).withOpacity(0.5),
+                    activeColor: const Color(0xFFE4572E),
+                    selectedColor: const Color(0xFFE4572E),
+                  ),
+                  onChanged: (_) {}, // Optional: Could add real-time validation here if needed
+                  onCompleted: (otp) => _verifyOTP(), // Auto-verify when 6 digits are entered
                 ),
-                onChanged: (_) {},
               ),
               const SizedBox(height: 20),
 
-              if (_errorMessage != null)
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-
-              const SizedBox(height: 20),
-
-              // ✅ Themed Verify button
+              // Themed Verify button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -174,7 +209,7 @@ class _MFAPageState extends State<MFAPage> {
               ),
               const SizedBox(height: 16),
 
-              // 🔁 Resend OTP countdown
+              // Resend OTP countdown
               TextButton(
                 onPressed: _canResend && !_loading ? _resendOTP : null,
                 child: Text(
