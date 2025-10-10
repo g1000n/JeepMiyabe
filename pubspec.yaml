@@ -14,16 +14,18 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # ✅ Google Maps Flutter
+  # Google Maps Flutter
   google_maps_flutter: ^2.9.0
 
-  # ✅ dotenv for hiding API keys
+  # dotenv for hiding API keys
   flutter_dotenv: ^5.1.0
 
-  # ✅ recommended linting rules
+  # recommended linting rules
   flutter_lints: ^5.0.0
 
   pin_code_fields: ^8.0.1
+
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -32,7 +34,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # ✅ Add .env as an asset so dotenv can read it
+  # Add .env as an asset so dotenv can read it
   assets:
     - .env
     - assets/

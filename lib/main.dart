@@ -5,7 +5,10 @@ import 'screens/welcome_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/login_page.dart';
 import 'screens/mfa_page.dart';
+import 'screens/verify_page.dart';
+import 'screens/dashboard_page.dart';  // Add this import (adjust path if needed)
 import 'map_screen.dart'; // Import your new MapScreen
+
 
 Future<void> main() async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,9 +21,30 @@ Future<void> main() async{
   runApp(const JeepMiyabeApp());
 }
 
-
-class JeepMiyabeApp extends StatelessWidget {
+//Stateful Widget to handle auth state changes for automatic redirection after sign up verifcation
+class JeepMiyabeApp extends StatefulWidget { 
   const JeepMiyabeApp({super.key});
+
+  @override
+  State<JeepMiyabeApp> createState() => _JeepMiyabeAppState();
+}
+
+class _JeepMiyabeAppState extends State<JeepMiyabeApp> {
+  late final supabase = Supabase.instance.client;
+
+  @override
+  void initState(){
+    super.initState();
+
+    supabase.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn && session != null && mounted) {
+        //If user just verified via email, go to dashboard
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,33 +55,25 @@ class JeepMiyabeApp extends StatelessWidget {
         primarySwatch: Colors.orange,
         fontFamily: 'Afacad',
       ),
-      //home: const WelcomePage(), Welcome page initial route
       initialRoute: '/', //Initial route set to SplashPage
       routes: {
         '/': (context) => const SplashPage(),
         '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) =>  const SignUpPage(),
-        '/dashboard': (context) => const PlaceholderPage(title: 'Dashboard'), //TODO: change with actual dashboard
+        '/dashboard': (context) => const DashboardPage(),
         '/mfa': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as String;
+          final args = ModalRoute.of(context)?.settings.arguments as String?;
+          if (args == null) {
+            // Fallback if no email argument
+            Navigator.pop(context);
+            return const SizedBox.shrink();
+          }
           return MFAPage(email: args);
         },
+        '/verify': (context) => const VerifyPage(), //verufy page for sign up
         '/map': (context) => const MapScreen(),
       },
-    );
-  }
-}
-
-class PlaceholderPage extends StatelessWidget {
-  final String title;
-  const PlaceholderPage({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('This is the $title screen')),
     );
   }
 }

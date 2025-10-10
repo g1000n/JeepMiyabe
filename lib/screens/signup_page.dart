@@ -41,14 +41,12 @@ class _SignUpPageState extends State<SignUpPage> {
           'id': response.user!.id,
           'username': username,
           'email': email,
+          'password': password, //TODO: Remove password on table if needed.
           'created_at': DateTime.now().toIso8601String(),
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Account created! Please check your email to verify.")),
-          );
-          Navigator.pop(context);
+          Navigator.pushReplacementNamed(context, '/verify');
         }
       }
     } catch (e) {
