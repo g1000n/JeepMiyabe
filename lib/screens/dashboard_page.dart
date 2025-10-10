@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/auth_storage.dart';  // Adjust path to your AuthStorage file (from MFA cooldown solution)
+import '../utils/auth_storage.dart';  // Adjust path to your AuthStorage file
+import 'profile_page.dart';  // Import the new ProfilePage (adjust path)
 
-const Color kPrimaryColor = Color(0xFFE4572E);  // Standardized to app's primary orange-red
+const Color kPrimaryColor = Color(0xFFE4572E);  // App's primary orange-red
 const Color kBackgroundColor = Color(0xFFFDF8E2);
 
 class DashboardPage extends StatefulWidget {
@@ -14,22 +15,33 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
+  final PageController _pageController = PageController();  // For sliding effect
 
-  // Placeholder pages for testing the navigation bar state
+  // Pages list: Placeholders for most, ProfilePage for index 4
   final List<Widget> _pages = [
     const Center(child: Text('Home Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))),
     const Center(child: Text('About Us Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))),
     const Center(child: Text('Center Button Activated', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))),
     const Center(child: Text('Favorites Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))),
-    const Center(child: Text('Profile Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))),
+    const ProfilePage(),  // Integrated ProfilePage at index 4
   ];
 
-  // Function to handle tab changes (no external functionality yet)
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  // Function to handle tab changes with slide animation
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // In a real app, you would navigate or update the state here.
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,  // Smooth sliding curve
+    );
     debugPrint('Tapped index: $index');
   }
 
@@ -102,20 +114,15 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(  // Added AppBar with logout
-        title: const Text('Dashboard', style: TextStyle(color: Colors.white)),
-        backgroundColor: kPrimaryColor,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout,  // Call logout function
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: SafeArea(  // Wrapped for better edge handling
-        child: _pages[_selectedIndex],
+      // Removed AppBar (no logout here anymore)
+      body: SafeArea(
+        child: PageView(  // Sliding container for pages
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() => _selectedIndex = index);  // Sync index on swipe
+          },
+          children: _pages.map((page) => page).toList(),
+        ),
       ),
       backgroundColor: kBackgroundColor,
       
@@ -150,7 +157,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
             // Right items
             _buildNavItem(index: 3, icon: Icons.bookmark, label: 'Favorites'),
-            _buildNavItem(index: 4, icon: Icons.person, label: 'Profile'),
+            _buildNavItem(index: 4, icon: Icons.person, label: 'Profile'),  // Now slides to ProfilePage
           ],
         ),
       ),
