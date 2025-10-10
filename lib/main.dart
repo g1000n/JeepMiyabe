@@ -5,9 +5,10 @@ import 'screens/welcome_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/login_page.dart';
 import 'screens/mfa_page.dart';
-import 'map_screen.dart'; // Import your new MapScreen
+import 'screens/dashboard_page.dart';  // Add this import (adjust path if needed)
+import 'map_screen.dart'; // Assuming this exists
 
-Future<void> main() async{
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
@@ -17,7 +18,6 @@ Future<void> main() async{
 
   runApp(const JeepMiyabeApp());
 }
-
 
 class JeepMiyabeApp extends StatelessWidget {
   const JeepMiyabeApp({super.key});
@@ -31,33 +31,24 @@ class JeepMiyabeApp extends StatelessWidget {
         primarySwatch: Colors.orange,
         fontFamily: 'Afacad',
       ),
-      //home: const WelcomePage(), Welcome page initial route
-      initialRoute: '/', //Initial route set to SplashPage
+      initialRoute: '/',
       routes: {
         '/': (context) => const SplashPage(),
         '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const LoginPage(),
-        '/signup': (context) =>  const SignUpPage(),
-        '/dashboard': (context) => const PlaceholderPage(title: 'Dashboard'), //TODO: change with actual dashboard
+        '/signup': (context) => const SignUpPage(),
+        '/dashboard': (context) => const DashboardPage(),  // Updated: Use DashboardPage instead of PlaceholderPage
         '/mfa': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as String;
+          final args = ModalRoute.of(context)?.settings.arguments as String?;
+          if (args == null) {
+            // Fallback if no email argument
+            Navigator.pop(context);
+            return const SizedBox.shrink();
+          }
           return MFAPage(email: args);
         },
         '/map': (context) => const MapScreen(),
       },
-    );
-  }
-}
-
-class PlaceholderPage extends StatelessWidget {
-  final String title;
-  const PlaceholderPage({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('This is the $title screen')),
     );
   }
 }
