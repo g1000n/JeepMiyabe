@@ -29,6 +29,8 @@ dependencies:
   font_awesome_flutter: ^10.6.0 # ADDED: Required for the car icon used in map_screen.dart UI
   pin_code_fields: ^8.0.1 # Likely for phone number/OTP login flow
 
+  shared_preferences: ^2.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

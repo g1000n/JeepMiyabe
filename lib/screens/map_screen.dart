@@ -13,10 +13,57 @@ import '../route_finder.dart';
 import '../widgets/route_info_bubble.dart'; 
 import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
-import '../widgets/custom_bottom_nav_bar.dart'; 
 
-// UI Utility/Logic (Refactored Instructions Sheet)
-import '../utils/instructions_sheet.dart'; 
+// --- COLOR CONSTANTS ADDED HERE ---
+const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
+const Color kBackgroundColor = Color(0xFFFDF8E2); // Light background color (Pale Yellow/Off-White)
+
+// Removed: import '../utils/instructions_sheet.dart'; // Logic is now self-contained
+
+// --- START Instruction Tile ---
+// This widget displays a single step (segment) of the calculated route.
+class InstructionTile extends StatelessWidget {
+  final RouteSegment segment;
+  const InstructionTile({super.key, required this.segment});
+
+  @override
+  Widget build(BuildContext context) {
+    IconData icon;
+    Color iconColor;
+
+    switch (segment.type) {
+      case SegmentType.WALK:
+        icon = Icons.directions_walk;
+        iconColor = Colors.grey.shade600;
+        break;
+      case SegmentType.JEEPNEY:
+        icon = Icons.directions_bus_filled;
+        iconColor = segment.color;
+        break;
+      case SegmentType.TRANSFER:
+        icon = Icons.swap_horiz;
+        // UPDATED: Use kPrimaryColor for transfer icon
+        iconColor = kPrimaryColor; 
+        break;
+    }
+
+    return ListTile(
+      leading: Icon(icon, color: iconColor, size: 30),
+      title: Text(
+        segment.description,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: segment.type == SegmentType.JEEPNEY ? Colors.black : Colors.black87,
+        ),
+      ),
+      subtitle: Text(
+        '${segment.durationMin.toStringAsFixed(0)} min / ${segment.distanceKm.toStringAsFixed(2)} km',
+        style: TextStyle(color: Colors.grey.shade700),
+      ),
+    );
+  }
+}
+// --- END Instruction Tile ---
 
 
 class MapScreen extends StatefulWidget {
@@ -60,14 +107,17 @@ class _MapScreenState extends State<MapScreen> {
     _markers.clear();
     _currentRoute.clear();
 
-    // Add all permanent network nodes as small violet markers
+    // Add all permanent network nodes as small markers
     for (var node in allNodes.values) {
       _markers.add(
         Marker(
           markerId: MarkerId(node.id),
           position: node.position,
-          infoWindow: InfoWindow(title: node.name, snippet: node.id),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+          // FIX: Prevent InfoWindow from popping up and manually trigger map tap logic
+          infoWindow: InfoWindow.noText, 
+          onTap: () => _onMapTapped(node.position), 
+          // UPDATED: Changed from hueViolet to hueOrange
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           alpha: 0.6, 
         ),
       );
@@ -103,7 +153,7 @@ class _MapScreenState extends State<MapScreen> {
             color: edge.routeColor.withOpacity(0.5), 
             width: 3,
             zIndex: 1, 
-          ),
+        ),
         );
         polylineIndex++;
       }
@@ -117,8 +167,7 @@ class _MapScreenState extends State<MapScreen> {
   void _onMapTapped(LatLng tapPosition) {
     if (_isSearching) return;
     
-    // Dismiss any existing instruction sheet
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    // Removed aggressive popUntil
 
     setState(() {
       if (_startPoint == null) {
@@ -193,7 +242,9 @@ class _MapScreenState extends State<MapScreen> {
         _drawRoutePolylines(segments);
       });
 
-      if (segments.isEmpty) {
+      if (segments.isNotEmpty) { // <-- Call instructions here
+        _showInstructionsSheet();
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No possible jeepney route found.')),
         );
@@ -212,8 +263,7 @@ class _MapScreenState extends State<MapScreen> {
 
   /// Clears the current route result and reloads the network dashboard view.
   void _clearRoute() {
-    // Dismiss any existing instruction sheet
-    Navigator.of(context).popUntil((route) => route.isFirst); 
+    // Removed aggressive popUntil
 
     setState(() {
       _startPoint = null;
@@ -259,25 +309,69 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-  
-  /// Function passed to the bottom nav bar pin to trigger the instructions sheet.
-  void _handleInstructionsPinPressed() {
-    if (_currentRoute.isNotEmpty) {
-      showInstructionsSheet(context, _currentRoute, _totalTime, _totalDistance);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tap on the map twice to find a route first.')),
-      );
-    }
+
+  /// Shows the bottom sheet containing the step-by-step instructions.
+  void _showInstructionsSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      // UPDATED: Set the modal color for kBackgroundColor if the overall theme isn't set
+      backgroundColor: kBackgroundColor,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.4,
+          minChildSize: 0.1,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) {
+            return Container( // Added Container to enforce background color
+              color: kBackgroundColor,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Time: ${_totalTime.toStringAsFixed(0)} mins',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Distance: ${_totalDistance.toStringAsFixed(1)} km',
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: _currentRoute.length,
+                      itemBuilder: (context, index) {
+                        return InstructionTile(segment: _currentRoute[index]);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
-
-
+  
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
+    // UPDATED: Use kPrimaryColor directly instead of Theme.of(context).primaryColor
+    // This ensures the orange-red color is used if the theme is not yet configured.
+    final primaryColor = kPrimaryColor; 
 
     return Scaffold(
       extendBodyBehindAppBar: true, 
+      // If you want the main scaffold background to be this color, uncomment:
+      // backgroundColor: kBackgroundColor,
       body: Stack(
         children: [
           // 1. Google Map Widget (The base layer)
@@ -289,7 +383,8 @@ class _MapScreenState extends State<MapScreen> {
             onTap: _onMapTapped,
             myLocationEnabled: true,
             myLocationButtonEnabled: false, 
-            padding: const EdgeInsets.only(bottom: 180.0), 
+            // ADJUSTED PADDING since the bottom bar is removed 
+            padding: const EdgeInsets.only(bottom: 100.0), 
             zoomControlsEnabled: false,
           ),
 
@@ -299,6 +394,7 @@ class _MapScreenState extends State<MapScreen> {
             left: 20,
             right: 20,
             child: SafeArea(
+              // primaryColor is now kPrimaryColor
               child: MapSearchHeader(primaryColor: primaryColor),
             ),
           ),
@@ -314,27 +410,17 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // 4. Floating Button: 'Tap to set start point' / 'Clear Route' (Using the new widget)
+          // 4. Floating Button: 'Tap to set start point' / 'Clear Route' (KEPT)
           Positioned(
             bottom: 110, 
             right: 20, 
             child: RouteActionButton(
+              // primaryColor is now kPrimaryColor
               primaryColor: primaryColor,
               isSearching: _isSearching,
               startPointSet: _startPoint != null,
               endPointSet: _endPoint != null,
               clearRoute: _clearRoute,
-            ),
-          ),
-          
-          // 5. Custom Bottom Navigation Bar (Using the new widget)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: CustomBottomNavBar(
-              primaryColor: primaryColor,
-              onPinPressed: _handleInstructionsPinPressed, // Pass the logic here
             ),
           ),
         ],
