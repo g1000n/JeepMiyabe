@@ -40,6 +40,12 @@ class _MFAPageState extends State<MFAPage> {
     });
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      // 🐛 CRITICAL FIX: Check if the widget is still in the tree before calling setState.
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
       if (_secondsLeft == 0) {
         timer.cancel();
         setState(() => _canResend = true);

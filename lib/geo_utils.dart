@@ -1,17 +1,34 @@
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'dart:math' as math;
-import 'pathfinding_config.dart'; // Import constant JEEPNEY_AVG_SPEED_KM_PER_MIN
+// File: geo_utils.dart
 
-/// Calculates the distance between two LatLng points using the Haversine formula (km).
-double calculateDistance(LatLng point1, LatLng point2) {
+import 'dart:math' as math;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+// Assuming these files exist and define necessary models/constants
+import 'graph_models.dart'; 
+import 'pathfinding_config.dart'; // Imports JEEPNEY_AVG_SPEED_KM_PER_MIN, MAX_SNAP_DISTANCE_KM, WALK_TIME_PER_KM_MINUTES
+
+// --------------------------------------------------------------------------
+// --- CORE HAVERSINE DISTANCE CALCULATION (Required Function) ---
+// --------------------------------------------------------------------------
+
+/// Helper function to convert degrees to radians.
+double _degreesToRadians(double degrees) {
+  return degrees * math.pi / 180;
+}
+
+/// Calculates the distance between two LatLng points using the Haversine formula.
+///
+/// **Returns:** Distance in **kilometers (km)**.
+double calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
   const double earthRadiusKm = 6371.0;
 
-  final double dLat = _degreesToRadians(point2.latitude - point1.latitude);
-  final double dLon = _degreesToRadians(point2.longitude - point1.longitude);
+  final double dLat = _degreesToRadians(lat2 - lat1);
+  final double dLon = _degreesToRadians(lon2 - lon1);
 
-  final double lat1Rad = _degreesToRadians(point1.latitude);
-  final double lat2Rad = _degreesToRadians(point2.latitude);
+  final double lat1Rad = _degreesToRadians(lat1);
+  final double lat2Rad = _degreesToRadians(lat2);
 
+  // Haversine formula calculation
   final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
       math.sin(dLon / 2) * math.sin(dLon / 2) * math.cos(lat1Rad) * math.cos(lat2Rad);
   
@@ -20,78 +37,167 @@ double calculateDistance(LatLng point1, LatLng point2) {
   return earthRadiusKm * c; // Distance in kilometers
 }
 
-/// Helper function to convert degrees to radians.
-double _degreesToRadians(double degrees) {
-  return degrees * math.pi / 180;
+
+// --------------------------------------------------------------------------
+// --- WEIGHT/COST UTILITIES FOR PATHFINDING SERVICE ---
+// --------------------------------------------------------------------------
+
+/// Calculates the total physical distance (in km) along a polyline path.
+double calculatePolylineDistance(List<LatLng> points) {
+  double totalDistanceKm = 0.0;
+  
+  if (points.length < 2) {
+    return 0.0;
+  }
+
+  // Sum the distance between every sequential point in the list
+  for (int i = 0; i < points.length - 1; i++) {
+    totalDistanceKm += calculateHaversineDistance(
+      points[i].latitude, points[i].longitude, 
+      points[i + 1].latitude, points[i + 1].longitude
+    ); 
+  }
+  
+  return totalDistanceKm; 
 }
 
-// --- MISSING FUNCTION ADDED HERE ---
-
-/// Calculates the time (in minutes) required to travel between two points.
-/// This is used as the 'weight' for the graph edges.
+/// Calculates the time (in minutes) required to travel the distance (km) of a polyline.
+/// This is used as the time cost (weight) for the graph edges.
 /// Time (min) = Distance (km) / Speed (km/min)
-double calculateJeepneyWeight(LatLng point1, LatLng point2) {
-  final distanceKm = calculateDistance(point1, point2);
-  // Use the constant defined in pathfinding_config.dart
+double calculateJeepneyWeight(List<LatLng> polylinePoints) {
+  final distanceKm = calculatePolylineDistance(polylinePoints); 
+  
+  // Assumes JEEPNEY_AVG_SPEED_KM_PER_MIN is available via import
   return distanceKm / JEEPNEY_AVG_SPEED_KM_PER_MIN; 
 }
 
-// --- END OF MISSING FUNCTION ---
+/// Calculates the time (in minutes) required for walking the distance (km).
+/// Time (min) = Distance (km) * TimePerKm (min/km)
+double calculateWalkWeight(double distanceKm) {
+  // Correctly use WALK_TIME_PER_KM_MINUTES from the config
+  return distanceKm * WALK_TIME_PER_KM_MINUTES;
+}
 
-/// --- POLYLINE STAGGERING LOGIC ---
-///
-/// Calculates points for a polyline that are slightly offset from the main line.
-/// This is used to display multiple overlapping jeepney routes clearly on the map.
-///
-/// [points]: The original LatLng points of the segment (usually just start and end node).
-/// [index]: The 0-based index of the current route sharing this segment.
-/// [totalSegments]: The total number of routes that share this segment.
+
+// --------------------------------------------------------------------------
+// --- NEAREST NODE SEARCH (CRITICAL FOR ROUTE FINDER) ---
+// --------------------------------------------------------------------------
+
+/// Finds the nearest graph node (stop) to a GPS point within the max connection radius.
+Node? findNearestNode(JeepneyGraph graph, LatLng point) {
+  Node? nearest;
+  double minDistance = double.infinity;
+  
+  // Use the constant MAX_SNAP_DISTANCE_KM from pathfinding_config.dart
+  const maxSearchRadiusKm = MAX_SNAP_DISTANCE_KM; 
+
+  for (var node in graph.nodes.values) {
+    // Calculate Haversine distance
+    final dist = calculateHaversineDistance(
+      point.latitude, point.longitude, 
+      node.position.latitude, node.position.longitude
+    ); 
+    
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearest = node;
+    }
+  }
+
+  // Only return the nearest node if it's within the maximum snapping radius
+  if (nearest != null && minDistance > maxSearchRadiusKm) {
+    return null; // Point is too far from any stop
+  }
+
+  return nearest;
+}
+
+
+// --------------------------------------------------------------------------
+// --- CAMERA AND MAP UTILITIES 🗺️ ---
+// --------------------------------------------------------------------------
+
+/// Calculates the LatLngBounds that encompasses all given points.
+/// This is used by the RouteController to frame the map camera onto the final route.
+LatLngBounds calculateBounds(List<LatLng> points) {
+  if (points.isEmpty) {
+    // Return a default bound centered near Angeles City if no points are provided
+    const LatLng defaultCenter = LatLng(15.1466, 120.5750); 
+    return LatLngBounds(northeast: defaultCenter, southwest: defaultCenter);
+  }
+  
+  // Initialize min/max with the first point
+  double minLat = points.first.latitude;
+  double maxLat = points.first.latitude;
+  double minLon = points.first.longitude;
+  double maxLon = points.first.longitude;
+
+  // Iterate over all points to find the true min/max
+  for (var point in points) {
+    minLat = math.min(minLat, point.latitude);
+    maxLat = math.max(maxLat, point.latitude);
+    minLon = math.min(minLon, point.longitude);
+    maxLon = math.max(maxLon, point.longitude);
+  }
+
+  return LatLngBounds(
+    southwest: LatLng(minLat, minLon), 
+    northeast: LatLng(maxLat, maxLon)
+  );
+}
+
+
+// --------------------------------------------------------------------------
+// --- POLYLINE STAGGERING LOGIC (Simplified/Cleaned) ---
+// --------------------------------------------------------------------------
+
+/// Calculates offset points for polylines to prevent overlapping visually on the map.
 List<LatLng> calculateStaggeredPoints(
     List<LatLng> points, int index, int totalSegments) {
+  
   if (points.length < 2) return points;
 
   final LatLng start = points.first;
   final LatLng end = points.last;
 
-  // Determine the offset amount. We use 5 meters (0.005 km) as the base offset.
   const double baseOffsetKm = 0.005; 
   
-  // Calculate the total required offset based on its position in the stack (index)
-  // Example: Center line (index=0) is offset 0. Index=1 is offset 5m, Index=2 is offset -5m, Index=3 is offset 10m, etc.
+  // Determine the signed offset distance (alternating positive/negative)
   final double signedOffsetKm = 
       (index == 0) ? 0.0 : baseOffsetKm * (index.isOdd ? (index + 1) ~/ 2 : -index ~/ 2);
 
-  // Convert km offset to degrees (approximation for LatLng adjustment)
-  // 1 degree of latitude is roughly 111 km. 1 degree of longitude varies.
-  // We'll use a simplified degree approximation for staggering effect.
+  // Convert kilometer offset to degrees (approximate)
   final double offsetDegrees = signedOffsetKm / 111.0; 
 
-  // Calculate the angle (bearing) of the line segment
+  // Convert start/end points to radians for bearing calculation
   final double lat1 = _degreesToRadians(start.latitude);
   final double lon1 = _degreesToRadians(start.longitude);
   final double lat2 = _degreesToRadians(end.latitude);
   final double lon2 = _degreesToRadians(end.longitude);
 
   final double dLon = lon2 - lon1;
+  
+  // Calculate the bearing (direction) of the line segment
   final double bearingRad = math.atan2(
     math.sin(dLon) * math.cos(lat2),
     math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLon),
   );
 
-  // Perpendicular angle for offset
+  // Calculate the perpendicular bearing (90 degrees to the line segment)
   final double perpendicularRad = bearingRad + math.pi / 2.0;
 
-  // Apply the offset to the start point
+  // Apply the offset in the perpendicular direction
   final LatLng staggeredStart = LatLng(
     start.latitude + offsetDegrees * math.sin(perpendicularRad),
     start.longitude + offsetDegrees * math.cos(perpendicularRad),
   );
 
-  // Apply the offset to the end point
   final LatLng staggeredEnd = LatLng(
     end.latitude + offsetDegrees * math.sin(perpendicularRad),
     end.longitude + offsetDegrees * math.cos(perpendicularRad),
   );
 
+  // Note: For a true staggered polyline, the full list of points should be offset, 
+  // but this implementation focuses on offsetting just the start/end for simplicity.
   return [staggeredStart, staggeredEnd];
 }

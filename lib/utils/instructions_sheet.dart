@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../route_segment.dart'; // Import the data model
+import '../route_segment_model.dart'; // Import the data model
 import '../widgets/instruction_tile.dart'; // Import the widget used inside the sheet
 
 /// Displays the route instructions in a persistent, draggable modal bottom sheet.

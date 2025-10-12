@@ -1,0 +1,247 @@
+[
+  {
+    "routeId": "R_CAPAYA_ANGELES._a00ef5",
+    "routeName": "CAPAYA - ANGELES (Pink)",
+    "colorHex": "0xFFC0CB", 
+    "segments": [
+      {
+        "segmentId": "R_CAPAYA_ANGELES._a00ef5_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 130
+      },
+      {
+        "segmentId": "R_CAPAYA_ANGELES._a00ef5_TURN",
+        "direction": "Turnaround",
+        "startIndex": 131,
+        "endIndex": 160
+      },
+      {
+        "segmentId": "R_CAPAYA_ANGELES._a00ef5_OUT",
+        "direction": "Outbound",
+        "startIndex": 161,
+        "endIndex": 303
+      }
+    ]
+  },
+  {
+    "routeId": "R_CHECKPOINT_HENS_340f2b",
+    "routeName": "CHECKPOINT - HENSONVILLE - HOLY (White)",
+    "colorHex": "0xFFFFFFFF",
+    "segments": [
+      {
+        "segmentId": "R_CHECKPOINT_HENS_340f2b_IN",
+        "direction": "Inbound",
+        "startIndex": 1,
+        "endIndex": 107
+      },
+      {
+        "segmentId": "R_CHECKPOINT_HENS_340f2b_TURN",
+        "direction": "Turnaround",
+        "startIndex": 108,
+        "endIndex": 135
+      },
+      {
+        "segmentId": "R_CHECKPOINT_HENS_340f2b_OUT",
+        "direction": "Outbound",
+        "startIndex": 136,
+        "endIndex": 243
+      }
+    ]
+  },
+  {
+    "routeId": "R_CHECKPOINT_HOLY_cce006",
+    "routeName": "CHECKPOINT-HOLY-HIGHWAY (Violet)",
+    "colorHex": "0xFFEE82EE",
+    "segments": [
+      {
+        "segmentId": "R_CHECKPOINT_HOLY_cce006_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 112
+      },
+      {
+        "segmentId": "R_CHECKPOINT_HOLY_cce006_TURN",
+        "direction": "Turnaround",
+        "startIndex": 113,
+        "endIndex": 330
+      },
+      {
+        "segmentId": "R_CHECKPOINT_HOLY_cce006_OUT",
+        "direction": "Outbound",
+        "startIndex": 331,
+        "endIndex": 424
+      }
+    ]
+  },
+  {
+    "routeId": "R_CPOINT_BALIBAG_4a938a",
+    "routeName": "CPOINT - BALIBAGO - HWAY (Grey)",
+    "colorHex": "0xFF808080",
+    "segments": [
+      {
+        "segmentId": "R_CPOINT_BALIBAG_4a938a_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 146
+      },
+      {
+        "segmentId": "R_CPOINT_BALIBAG_4a938a_TURN",
+        "direction": "Turnaround",
+        "startIndex": 147,
+        "endIndex": 174
+      },
+      {
+        "segmentId": "R_CPOINT_BALIBAG_4a938a_OUT",
+        "direction": "Outbound",
+        "startIndex": 175,
+        "endIndex": 374
+      }
+    ]
+  },
+  {
+    "routeId": "R_MAIN_GATE_FRIEN_b03126",
+    "routeName": "MAIN GATE - FRIENDSHIP (Sand)",
+    "colorHex": "0xFFF4A460",
+    "segments": [
+      {
+        "segmentId": "R_MAIN_GATE_FRIEN_b03126_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 56
+      },
+      {
+        "segmentId": "R_MAIN_GATE_FRIEN_b03126_OUT",
+        "direction": "Outbound",
+        "startIndex": 57,
+        "endIndex": 112
+      }
+    ]
+  },
+  {
+    "routeId": "R_MARISOL_PAMPANG_830b59",
+    "routeName": "MARISOL - PAMPANG (Green)",
+    "colorHex": "0xFF008000",
+    "segments": [
+      {
+        "segmentId": "R_MARISOL_PAMPANG_830b59_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 155
+      },
+      {
+        "segmentId": "R_MARISOL_PAMPANG_830b59_OUT",
+        "direction": "Outbound",
+        "startIndex": 156,
+        "endIndex": 259
+      }
+    ]
+  },
+  {
+    "routeId": "R_PANDANG_PAMPANG_85f7b9",
+    "routeName": "PANDANG - PAMPANG (Blue)",
+    "colorHex": "0xFF0000FF",
+    "segments": [
+      {
+        "segmentId": "R_PANDANG_PAMPANG_85f7b9_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 139
+      },
+      {
+        "segmentId": "R_PANDANG_PAMPANG_85f7b9_TURN",
+        "direction": "Turnaround",
+        "startIndex": 140,
+        "endIndex": 170
+      },
+      {
+        "segmentId": "R_PANDANG_PAMPANG_85f7b9_OUT",
+        "direction": "Outbound",
+        "startIndex": 171,
+        "endIndex": 437
+      }
+    ]
+  },
+  {
+    "routeId": "R_SAPANG_BATO.KMZ_b51cda",
+    "routeName": "SAPANG BATO (Red)",
+    "colorHex": "0xFFFF0000",
+    "segments": [
+      {
+        "segmentId": "R_SAPANG_BATO.KMZ_b51cda_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 395
+      },
+      {
+        "segmentId": "R_SAPANG_BATO.KMZ_b51cda_OUT",
+        "direction": "Outbound",
+        "startIndex": 396,
+        "endIndex": 790
+      }
+    ]
+  },
+  {
+    "routeId": "R_SM_CITY_MAIN_GA_95840e",
+    "routeName": "SM CITY - MAIN GATE – DAU (Various)",
+    "colorHex": "0xFF4682B4",
+    "segments": [
+      {
+        "segmentId": "R_SM_CITY_MAIN_GA_95840e_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 64
+      },
+      {
+        "segmentId": "R_SM_CITY_MAIN_GA_95840e_OUT",
+        "direction": "Outbound",
+        "startIndex": 65,
+        "endIndex": 133
+      }
+    ]
+  },
+  {
+    "routeId": "R_SUNSET_NEPO.KMZ_99e390",
+    "routeName": "SUNSET - NEPO (Orange)",
+    "colorHex": "0xFFFFA500",
+    "segments": [
+      {
+        "segmentId": "R_SUNSET_NEPO.KMZ_99e390_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 62
+      },
+      {
+        "segmentId": "R_SUNSET_NEPO.KMZ_99e390_TURN",
+        "direction": "Turnaround",
+        "startIndex": 63,
+        "endIndex": 91
+      },
+      {
+        "segmentId": "R_SUNSET_NEPO.KMZ_99e390_OUT",
+        "direction": "Outbound",
+        "startIndex": 92,
+        "endIndex": 150
+      }
+    ]
+  },
+  {
+    "routeId": "R_VILLA_PAMPANGA._8fd770",
+    "routeName": "VILLA-PAMPANGA (Yellow)",
+    "colorHex": "0xFFFFFF00",
+    "segments": [
+      {
+        "segmentId": "R_VILLA_PAMPANGA._8fd770_IN",
+        "direction": "Inbound",
+        "startIndex": 0,
+        "endIndex": 108
+      },
+      {
+        "segmentId": "R_VILLA_PAMPANGA._8fd770_OUT",
+        "direction": "Outbound",
+        "startIndex": 109,
+        "endIndex": 212
+      }
+    ]
+  }
+]

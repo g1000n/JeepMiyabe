@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:collection';
+import 'dart:math';
 
-// Local Project Files (Imports necessary for your complex logic)
-import '../jeepney_network_data.dart'; 
+// Local Project Files
+import '../data_loader.dart'; 
 import '../graph_models.dart';
-import '../geo_utils.dart';
-import '../route_segment.dart';
+import '../geo_utils.dart'; // Assumed to exist for calculating bounds
+import '../route_segment_model.dart' as model; // 🎯 FIX: Explicitly import model
 import '../route_finder.dart';
 
-// UI Components (Refactored Widgets)
+// UI Components (Refactored Widgets) - Assumed to exist
 import '../widgets/route_info_bubble.dart'; 
 import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
 
-// --- COLOR CONSTANTS ADDED HERE ---
+// --- COLOR CONSTANTS ---
 const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
 const Color kBackgroundColor = Color(0xFFFDF8E2); // Light background color (Pale Yellow/Off-White)
 
-// Removed: import '../utils/instructions_sheet.dart'; // Logic is now self-contained
-
-// --- START Instruction Tile ---
-// This widget displays a single step (segment) of the calculated route.
+// --- Instruction Tile ---
 class InstructionTile extends StatelessWidget {
-  final RouteSegment segment;
+  // 🎯 FIX: Use the prefixed type for the segment field
+  final model.RouteSegment segment; 
+  
   const InstructionTile({super.key, required this.segment});
 
   @override
@@ -31,18 +31,18 @@ class InstructionTile extends StatelessWidget {
     IconData icon;
     Color iconColor;
 
+    // 🎯 FIX: Use the prefixed SegmentType 
     switch (segment.type) {
-      case SegmentType.WALK:
+      case model.SegmentType.WALK:
         icon = Icons.directions_walk;
         iconColor = Colors.grey.shade600;
         break;
-      case SegmentType.JEEPNEY:
+      case model.SegmentType.JEEPNEY:
         icon = Icons.directions_bus_filled;
         iconColor = segment.color;
         break;
-      case SegmentType.TRANSFER:
+      case model.SegmentType.TRANSFER:
         icon = Icons.swap_horiz;
-        // UPDATED: Use kPrimaryColor for transfer icon
         iconColor = kPrimaryColor; 
         break;
     }
@@ -53,7 +53,8 @@ class InstructionTile extends StatelessWidget {
         segment.description,
         style: TextStyle(
           fontWeight: FontWeight.bold,
-          color: segment.type == SegmentType.JEEPNEY ? Colors.black : Colors.black87,
+          // 🎯 FIX: Use prefixed SegmentType
+          color: segment.type == model.SegmentType.JEEPNEY ? Colors.black : Colors.black87, 
         ),
       ),
       subtitle: Text(
@@ -75,57 +76,132 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
-  final Set<Polyline> _polylines = LinkedHashSet(); 
-  final Set<Marker> _markers = LinkedHashSet();
-  final RouteFinder _routeFinder = RouteFinder();
+  
+  // Separate Polylines for Network (static) and Result (dynamic)
+  final Set<Polyline> _networkPolylines = LinkedHashSet(); 
+  final Set<Polyline> _resultPolylines = LinkedHashSet(); 
+  
+  // Separate Markers for Network (static) and Result (dynamic/user)
+  final Set<Marker> _networkMarkers = LinkedHashSet(); 
+  final Set<Marker> _userMarkers = LinkedHashSet(); 
+  
+  JeepneyGraph? _jeepneyGraph;
+  RouteFinder? _routeFinder; 
 
   LatLng? _startPoint;
   LatLng? _endPoint;
-  List<RouteSegment> _currentRoute = [];
+  // 🎯 FIX: Use the prefixed type for the list
+  List<model.RouteSegment> _currentRoute = []; 
   bool _isSearching = false;
+  bool _isDataLoaded = false; 
 
-  // Camera focused on the sample data area
   static const CameraPosition _initialCameraPosition = CameraPosition(
     target: LatLng(15.1466, 120.5960),
     zoom: 13.5, 
   );
 
-  // --- COMPUTED PROPERTIES (Used for the UI components) ---
-  double get _totalTime => _currentRoute.fold(0.0, (sum, item) => sum + item.durationMin);
-  double get _totalDistance => _currentRoute.fold(0.0, (sum, item) => sum + item.distanceKm);
+  // 🎯 FIX: Use the prefixed type for fold operations
+  double get _totalTime => _currentRoute.fold(0.0, (sum, item) => sum + item.durationMin); 
+  double get _totalDistance => _currentRoute.fold(0.0, (sum, item) => sum + item.distanceKm); 
+  
+  // Helper to combine all markers for the GoogleMap widget
+  Set<Marker> get _allMarkers => {..._networkMarkers, ..._userMarkers};
+  
+  // Helper to combine all polylines for the GoogleMap widget
+  Set<Polyline> get _allPolylines => {..._networkPolylines, ..._resultPolylines};
 
 
   @override
   void initState() {
     super.initState();
-    _loadNetworkVisualization(); 
+    _initializeDataAndMap(); 
   }
 
-  /// Loads all nodes as markers and all route segments as faint polylines
-  void _loadNetworkVisualization() {
-    _polylines.clear();
-    _markers.clear();
-    _currentRoute.clear();
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
 
-    // Add all permanent network nodes as small markers
-    for (var node in allNodes.values) {
-      _markers.add(
+  /// Initializes the network data and calls visualization immediately
+  Future<void> _initializeDataAndMap() async {
+    setState(() { _isSearching = true; });
+    try {
+      final graph = await DataLoader().loadOptimizedNetwork();
+
+      setState(() {
+        _jeepneyGraph = graph;
+        _routeFinder = RouteFinder(graph);
+        _isDataLoaded = true;
+      });
+
+      // Load network visualization once upon successful data load.
+      await _loadNetworkVisualization(); 
+
+    } catch (e) {
+      debugPrint('Initialization ERROR: $e');
+      setState(() {
+        _isDataLoaded = false;
+      });
+    } finally {
+      setState(() { _isSearching = false; });
+    }
+  }
+
+  // 🎯 FIX: Pass the prefixed RouteSegment type
+  LatLngBounds _boundsFromSegments(List<model.RouteSegment> segments) {
+    double? minLat, maxLat, minLng, maxLng;
+
+    for (var segment in segments) {
+      for (var point in segment.path) {
+        // Calculate bounds using min/max utility functions from dart:math
+        minLat = min(minLat ?? point.latitude, point.latitude);
+        maxLat = max(maxLat ?? point.latitude, point.latitude);
+        minLng = min(minLng ?? point.longitude, point.longitude);
+        maxLng = max(maxLng ?? point.longitude, point.longitude);
+      }
+    }
+
+    if (minLat == null || maxLat == null || minLng == null || maxLng == null) {
+      // Default bounds if no segments are present
+      return LatLngBounds(
+        southwest: const LatLng(15.1, 120.5),
+        northeast: const LatLng(15.2, 120.7),
+      );
+    }
+
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+  }
+
+  Future<void> _loadNetworkVisualization() async {
+    if (!_isDataLoaded || _jeepneyGraph == null || _jeepneyGraph!.nodes.isEmpty) {
+        debugPrint('Network data not available for visualization.');
+        return;
+    }
+
+    final graph = _jeepneyGraph!;
+
+    _networkPolylines.clear();
+    _networkMarkers.clear();
+
+    for (var node in graph.nodes.values) {
+      _networkMarkers.add(
         Marker(
           markerId: MarkerId(node.id),
           position: node.position,
-          // FIX: Prevent InfoWindow from popping up and manually trigger map tap logic
           infoWindow: InfoWindow.noText, 
           onTap: () => _onMapTapped(node.position), 
-          // UPDATED: Changed from hueViolet to hueOrange
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           alpha: 0.6, 
         ),
       );
     }
 
-    // Process edges to group shared segments for staggering
     final Map<String, List<Edge>> sharedSegments = {};
-    for (var edges in jeepneyNetwork.adjacencyList.values) {
+    for (var edges in graph.adjacencyList.values) {
       for (var edge in edges) {
         final key = '${edge.startNodeId}-${edge.endNodeId}';
         sharedSegments.putIfAbsent(key, () => []).add(edge);
@@ -133,72 +209,61 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     int polylineIndex = 0;
-    // Draw all segments, staggering them visually if they overlap
     sharedSegments.forEach((key, edges) {
-      final totalSegments = edges.length;
+      final edge = edges.first; // Use the first edge's properties for the segment
 
-      for (int i = 0; i < totalSegments; i++) {
-        final edge = edges[i];
-
-        final List<LatLng> staggeredPoints = calculateStaggeredPoints(
-          edge.polylinePoints,
-          i,
-          totalSegments,
-        );
-
-        _polylines.add(
-          Polyline(
-            polylineId: PolylineId('network_route_$polylineIndex'),
-            points: staggeredPoints,
-            color: edge.routeColor.withOpacity(0.5), 
-            width: 3,
-            zIndex: 1, 
+      _networkPolylines.add(
+        Polyline(
+          polylineId: PolylineId('network_route_$polylineIndex'),
+          points: edge.polylinePoints, 
+          color: edge.routeColor.withOpacity(0.5), 
+          width: 3,
+          zIndex: 1, 
         ),
-        );
-        polylineIndex++;
-      }
+      );
+      polylineIndex++;
     });
 
-    setState(() {});
-    debugPrint('Network Dashboard loaded: ${_markers.length} nodes and ${_polylines.length} route segments.');
+    // CRITICAL: Call setState to update the GoogleMap widget with the populated sets.
+    setState(() {}); 
+    debugPrint('Network Dashboard loaded: ${_networkMarkers.length} nodes and ${_networkPolylines.length} route segments.');
   }
 
-  /// Handles map tap events to set start and end points for route finding.
   void _onMapTapped(LatLng tapPosition) {
-    if (_isSearching) return;
+    if (!_isDataLoaded || _isSearching || _routeFinder == null) return; 
     
-    // Removed aggressive popUntil
-
     setState(() {
       if (_startPoint == null) {
-        // Set Start Point
         _startPoint = tapPosition;
         _endPoint = null;
         _currentRoute.clear();
-        _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
-        _updateMarkers();
+        _resultPolylines.clear(); 
+        _updateUserMarkers(); 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Start point set (Green marker). Tap again for Destination.')),
         );
       } else if (_endPoint == null) {
-        // Set End Point and Find Route
         _endPoint = tapPosition;
-        _updateMarkers();
-        _findRoute();
+        _updateUserMarkers(); 
+        _findRoute(); 
       } else {
-        // Clear everything if both are set
         _clearRoute();
+        // After clearing, set the new tap as the start point for a fresh route
+        _startPoint = tapPosition; 
+        _updateUserMarkers(); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Route cleared. Start point reset.')),
+        );
       }
     });
   }
 
-  /// Updates the temporary user markers (Start/End) on the map.
-  void _updateMarkers() {
-    // Remove old user markers
-    _markers.removeWhere((m) => m.markerId.value.startsWith('USER_'));
+  // Updated to manage ONLY user-placed markers
+  void _updateUserMarkers() {
+    _userMarkers.clear();
 
     if (_startPoint != null) {
-      _markers.add(
+      _userMarkers.add(
         Marker(
           markerId: const MarkerId('USER_START'),
           position: _startPoint!,
@@ -210,7 +275,7 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
     if (_endPoint != null) {
-      _markers.add(
+      _userMarkers.add(
         Marker(
           markerId: const MarkerId('USER_END'),
           position: _endPoint!,
@@ -223,26 +288,26 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  /// Executes the pathfinding logic.
   Future<void> _findRoute() async {
-    if (_startPoint == null || _endPoint == null) return;
+    if (!_isDataLoaded || _startPoint == null || _endPoint == null || _routeFinder == null) return; 
 
     setState(() {
       _isSearching = true;
       _currentRoute.clear();
-      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
-      _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
+      _resultPolylines.clear(); // Ensure only the result polylines are cleared
     });
 
     try {
-      final segments = await _routeFinder.findPathWithGPS(_startPoint!, _endPoint!);
+      // Correctly call the route finding method on the RouteFinder
+      final segments = await _routeFinder!.findPathWithGPS(_startPoint!, _endPoint!); 
 
       setState(() {
         _currentRoute = segments;
         _drawRoutePolylines(segments);
       });
 
-      if (segments.isNotEmpty) { // <-- Call instructions here
+      if (segments.isNotEmpty) { 
+        _panCameraToRoute(segments);
         _showInstructionsSheet();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -252,7 +317,7 @@ class _MapScreenState extends State<MapScreen> {
     } catch (e) {
       debugPrint('Route finding error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred during route finding: ${e.toString().split(':')[0]}')),
+        SnackBar(content: Text('An error occurred: ${e.toString().split(':')[0]}')),
       );
     } finally {
       setState(() {
@@ -261,61 +326,57 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  /// Clears the current route result and reloads the network dashboard view.
   void _clearRoute() {
-    // Removed aggressive popUntil
-
     setState(() {
       _startPoint = null;
       _endPoint = null;
       _currentRoute.clear();
-      _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
-      _updateMarkers(); 
-      _loadNetworkVisualization(); 
+      _resultPolylines.clear(); // Clear ONLY the result polylines
+      _updateUserMarkers(); 
     });
   }
 
-  /// Draws the calculated RouteSegments on the map using distinctive polylines.
-  void _drawRoutePolylines(List<RouteSegment> segments) {
+  // 🎯 FIX: Pass the prefixed RouteSegment type
+  void _drawRoutePolylines(List<model.RouteSegment> segments) {
     int index = 0;
+    _resultPolylines.clear(); 
+
     for (var segment in segments) {
-      _polylines.add(
+      _resultPolylines.add(
         Polyline(
           polylineId: PolylineId('result_${index++}'),
           points: segment.path,
           color: segment.color,
-          width: segment.type == SegmentType.WALK ? 3 : 6,
-          patterns: segment.type == SegmentType.WALK
-              ? [PatternItem.dash(10), PatternItem.gap(5)] // Dashed line for walking
+          // 🎯 FIX: Use prefixed SegmentType
+          width: segment.type == model.SegmentType.WALK ? 3 : 6, 
+          // 🎯 FIX: Use prefixed SegmentType
+          patterns: segment.type == model.SegmentType.WALK
+              ? [PatternItem.dash(10), PatternItem.gap(5)] 
               : const <PatternItem>[],
           zIndex: 10, 
         ),
       );
     }
-    // Pan camera to view the entire route (Logic unchanged)
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(
-            _currentRoute.expand((s) => s.path).map((p) => p.latitude).reduce((a, b) => a < b ? a : b),
-            _currentRoute.expand((s) => s.path).map((p) => p.longitude).reduce((a, b) => a < b ? a : b),
-          ),
-          northeast: LatLng(
-            _currentRoute.expand((s) => s.path).map((p) => p.latitude).reduce((a, b) => a > b ? a : b),
-            _currentRoute.expand((s) => s.path).map((p) => p.longitude).reduce((a, b) => a > b ? a : b),
-          ),
+  }
+  
+  // 🎯 FIX: Pass the prefixed RouteSegment type
+  void _panCameraToRoute(List<model.RouteSegment> segments) {
+    if (_mapController != null && segments.expand((s) => s.path).isNotEmpty) {
+      final bounds = _boundsFromSegments(segments);
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          bounds,
+          100, // Padding
         ),
-        100.0, // padding
-      ),
-    );
+      );
+    }
   }
 
-  /// Shows the bottom sheet containing the step-by-step instructions.
+
   void _showInstructionsSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      // UPDATED: Set the modal color for kBackgroundColor if the overall theme isn't set
       backgroundColor: kBackgroundColor,
       builder: (context) {
         return DraggableScrollableSheet(
@@ -324,7 +385,7 @@ class _MapScreenState extends State<MapScreen> {
           maxChildSize: 0.9,
           expand: false,
           builder: (_, scrollController) {
-            return Container( // Added Container to enforce background color
+            return Container( 
               color: kBackgroundColor,
               child: Column(
                 children: [
@@ -364,42 +425,55 @@ class _MapScreenState extends State<MapScreen> {
   
   @override
   Widget build(BuildContext context) {
-    // UPDATED: Use kPrimaryColor directly instead of Theme.of(context).primaryColor
-    // This ensures the orange-red color is used if the theme is not yet configured.
     final primaryColor = kPrimaryColor; 
 
     return Scaffold(
       extendBodyBehindAppBar: true, 
-      // If you want the main scaffold background to be this color, uncomment:
-      // backgroundColor: kBackgroundColor,
       body: Stack(
         children: [
-          // 1. Google Map Widget (The base layer)
           GoogleMap(
             initialCameraPosition: _initialCameraPosition,
-            onMapCreated: (controller) => _mapController = controller,
-            markers: _markers,
-            polylines: _polylines,
-            onTap: _onMapTapped,
+            onMapCreated: (controller) {
+              _mapController = controller;
+            },
+            // Combine all markers and polylines
+            markers: _allMarkers,
+            polylines: _allPolylines,
+            
+            onTap: _isDataLoaded ? _onMapTapped : null, 
             myLocationEnabled: true,
             myLocationButtonEnabled: false, 
-            // ADJUSTED PADDING since the bottom bar is removed 
             padding: const EdgeInsets.only(bottom: 100.0), 
             zoomControlsEnabled: false,
           ),
 
-          // 2. Custom Top Header/Search Bar (Using the new widget)
           Positioned(
             top: 40,
             left: 20,
             right: 20,
             child: SafeArea(
-              // primaryColor is now kPrimaryColor
               child: MapSearchHeader(primaryColor: primaryColor),
             ),
           ),
+          
+          if (!_isDataLoaded || _isSearching)
+            const Center(
+              child: Card(
+                elevation: 4.0,
+                child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: kPrimaryColor),
+                      SizedBox(height: 10),
+                      Text("Loading network data...", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
-          // 3. Floating Route Information Bubble (Using the new widget)
           if (_currentRoute.isNotEmpty)
             Positioned(
               top: 350, 
@@ -410,19 +484,18 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // 4. Floating Button: 'Tap to set start point' / 'Clear Route' (KEPT)
-          Positioned(
-            bottom: 110, 
-            right: 20, 
-            child: RouteActionButton(
-              // primaryColor is now kPrimaryColor
-              primaryColor: primaryColor,
-              isSearching: _isSearching,
-              startPointSet: _startPoint != null,
-              endPointSet: _endPoint != null,
-              clearRoute: _clearRoute,
+          if (_isDataLoaded)
+            Positioned(
+              bottom: 110, 
+              right: 20, 
+              child: RouteActionButton(
+                primaryColor: primaryColor,
+                isSearching: _isSearching,
+                startPointSet: _startPoint != null,
+                endPointSet: _endPoint != null,
+                clearRoute: _clearRoute,
+              ),
             ),
-          ),
         ],
       ),
     );

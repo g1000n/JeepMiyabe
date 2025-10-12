@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeep Route Segment Indexer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Set font to Inter */
+        html { font-family: 'Inter', sans-serif; }
+        /* Map container must have a defined height */
+        #map { height: calc(100vh - 12rem); border-radius: 0.5rem; }
+        /* Custom styling for the index markers */
+        .index-marker {
+            background-color: transparent !important;
+            border: none !important;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-6 p-4 bg-white shadow-lg rounded-lg">
+            <h1 class="text-3xl font-bold text-gray-800">Jeep Route Segment Indexer</h1>
+            <p class="text-gray-600 mt-1">**NEW:** Use the Route Visibility panel to isolate lines and prevent overlaps. Markers show index sequence every 25 points.</p>
+        </header>
+
+        <div id="statusMessage" class="mb-4 p-3 bg-blue-100 text-blue-800 rounded-lg hidden">
+            Loading routes from routes_polyline_lookup.json...
+        </div>
+
+        <div id="map" class="shadow-xl mb-6"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div id="controls" class="md:col-span-1 p-4 bg-white shadow-lg rounded-lg border-t-4 border-emerald-500">
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Route Visibility</h2>
+                <div id="routeToggles" class="space-y-2 max-h-96 overflow-y-auto">
+                    <p class="text-gray-500 text-sm">Loading route list...</p>
+                </div>
+            </div>
+
+            <div id="resultCard" class="md:col-span-2 p-4 bg-white shadow-lg rounded-lg border-t-4 border-indigo-500">
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Closest Point Index & Manual Debugger</h2>
+                <div id="debuggerSection">
+                    <p id="activeRouteDisplay" class="text-sm text-gray-500 mb-2">Active Route: N/A. Click a route to begin manual stepping.</p>
+                    <div id="stepperControls" class="flex items-center space-x-4 mb-4">
+                        <button onclick="window.app.stepIndex(-1)" id="prevButton" 
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:bg-gray-300 disabled:opacity-50 transition duration-150" 
+                                disabled>
+                            &lt; Prev Index
+                        </button>
+                        <span id="currentIndexDisplay" class="text-3xl font-extrabold text-indigo-700 w-20 text-center">---</span>
+                        <button onclick="window.app.stepIndex(1)" id="nextButton" 
+                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 disabled:opacity-50 transition duration-150" 
+                                disabled>
+                            Next Index &gt;
+                        </button>
+                    </div>
+                </div>
+                <hr class="my-4">
+                <p id="resultContent" class="text-gray-700">Click on a route on the map to get a segment index.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a self-invoking function to keep variables scoped
+        (function() {
+            const MAP_CENTER = [15.145, 120.58]; // A sensible center for Angeles City
+            const MAP_ZOOM = 13;
+            const JSON_FILE_PATH = 'routes_polyline_lookup.json';
+
+            // Global state tracking which route IDs are currently visible
+            let visibleRoutes = new Set();
+            
+            // Global variables for map and data
+            let map;
+            let routesData = {}; // Stores all JSON data
+            let allPoints = []; // Flat list of {lat, lon, index, routeId, routeName} FOR ALL ROUTES
+            let clickablePoints = []; // Only stores points for VISIBLE routes (used for click detection)
+            let leafletPolylines = {}; // Store references to Leaflet polyline objects
+            let resultContent = document.getElementById('resultContent');
+            let statusMessage = document.getElementById('statusMessage');
+
+            // NEW STATE FOR STEPPER
+            let activeRouteId = null; 
+            let totalRouteLength = 0;
+            const currentIndexDisplay = document.getElementById('currentIndexDisplay');
+            const activeRouteDisplay = document.getElementById('activeRouteDisplay');
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+            let lastMarker = null;
+
+            /**
+             * Initializes the Leaflet map.
+             */
+            function initMap() {
+                try {
+                    map = L.map('map').setView(MAP_CENTER, MAP_ZOOM);
+
+                    // Add OpenStreetMap tiles
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    // Add click listener to the map for finding indices
+                    map.on('click', onMapClick);
+                    
+                    // Display status
+                    statusMessage.textContent = "Map initialized. Attempting to load route data...";
+                    statusMessage.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+                    statusMessage.classList.add('bg-blue-100', 'text-blue-800');
+
+                } catch (e) {
+                    console.error("Error initializing map:", e);
+                    resultContent.innerHTML = '<span class="text-red-500 font-bold">Error: Could not initialize map.</span>';
+                }
+            }
+            
+            /**
+             * Converts a hexadecimal string (0xFF000000) to a Leaflet color string (#000000).
+             * @param {string} hex - The Firebase-style color string.
+             * @returns {string} The CSS-style color string.
+             */
+            function toLeafletColor(hex) {
+                if (!hex || hex.length < 8) return '#1d4ed8'; // Default Blue (indigo-700)
+                // Remove the initial '0x' and the alpha 'FF' (first two chars)
+                // If it's 0xFFRRGGBB, we want #RRGGBB
+                const color = hex.substring(4); 
+                return '#' + color;
+            }
+
+            /**
+             * Draws numbered markers along the routes to show the index sequence.
+             */
+            function drawIndexMarkers() {
+                const STEP = 25; 
+                
+                // Remove existing index markers before drawing new ones
+                map.eachLayer(layer => {
+                    if (layer instanceof L.Marker && layer.options.icon && layer.options.icon.options.className === 'index-marker') {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                allPoints.forEach((point) => {
+                    // Only draw markers for VISIBLE points
+                    if (!visibleRoutes.has(point.routeId)) return;
+
+                    // Only mark the starting point (0) and every STEPth point
+                    if (point.index === 0 || point.index % STEP === 0) {
+                        // Use a custom DivIcon to display the index number
+                        const markerIcon = L.divIcon({
+                            className: 'index-marker',
+                            html: `<div class="bg-red-600 text-white font-bold text-xs p-1 rounded-full w-6 h-6 flex items-center justify-center shadow-md border-2 border-white">${point.index}</div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        });
+
+                        // Add the marker to the map
+                        L.marker([point.lat, point.lon], { icon: markerIcon, opacity: 0.7 }).addTo(map)
+                            .bindTooltip(`${point.routeName} (Index ${point.index})`, { permanent: false, direction: 'auto' });
+                    }
+                });
+                console.log(`Drawn index markers every ${STEP} points for visualization.`);
+            }
+
+            /**
+             * Recalculates the clickablePoints array and redraws markers based on visibleRoutes.
+             */
+            function updateClickablePoints() {
+                clickablePoints = [];
+                // Filter the entire list down to only points whose routeId is in the visibleRoutes set
+                allPoints.forEach(point => {
+                    if (visibleRoutes.has(point.routeId)) {
+                        clickablePoints.push(point);
+                    }
+                });
+                // Redraw markers to match visibility changes
+                drawIndexMarkers();
+                console.log(`Clickable points updated. Total clickable points: ${clickablePoints.length}`);
+            }
+
+            /**
+             * Toggles the visibility of a specific route polyline AND updates the visibleRoutes set.
+             * This function is exposed globally for use in the HTML's onchange events.
+             * @param {string} routeId - The ID of the route to toggle.
+             * @param {boolean} isVisible - True to show, false to hide.
+             */
+            function toggleRoute(routeId, isVisible) {
+                const polyline = leafletPolylines[routeId];
+                if (!polyline) return;
+
+                if (isVisible) {
+                    polyline.addTo(map);
+                    visibleRoutes.add(routeId); // Add to the set
+                } else {
+                    map.removeLayer(polyline);
+                    visibleRoutes.delete(routeId); // Remove from the set
+                }
+                
+                // CRITICAL: Update the array used for click detection every time visibility changes
+                updateClickablePoints();
+            }
+
+
+            /**
+             * Loads and processes the route data from the JSON file.
+             */
+            async function loadRoutes() {
+                try {
+                    // Cache Buster: Appends a unique timestamp to force the browser to load the latest JSON
+                    const cacheBusterUrl = `${JSON_FILE_PATH}?t=${new Date().getTime()}`;
+                    const response = await fetch(cacheBusterUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    routesData = await response.json();
+                    
+                    let bounds = L.latLngBounds();
+                    const routeTogglesContainer = document.getElementById('routeToggles');
+                    routeTogglesContainer.innerHTML = ''; // Clear the "Loading" message
+                    
+                    // Clear the visibleRoutes set and allPoints for a fresh start
+                    visibleRoutes.clear();
+                    allPoints = [];
+
+                    let firstRouteId = null; // Stays null until a valid route is found
+
+                    // Loop through all routes in the JSON file
+                    for (const routeId in routesData) {
+                        const route = routesData[routeId];
+                        
+                        // *** ROBUSTNESS CHECK: Ensure polyline data exists and is not empty ***
+                        if (!route.fullPolyline || route.fullPolyline.length === 0) {
+                            console.warn(`Route ${route.routeName} (${routeId}) skipped: Polyline is empty or invalid.`);
+                            continue; 
+                        }
+
+                        // Only set firstRouteId if the route is confirmed to be valid
+                        if (firstRouteId === null) firstRouteId = routeId; 
+                        
+                        const polylineCoords = route.fullPolyline.map(p => [p.lat, p.lon]);
+                        const color = toLeafletColor(route.routeColorHex);
+                        
+                        // Draw the polyline on the map
+                        const polyline = L.polyline(polylineCoords, {
+                            color: color,
+                            weight: 5,
+                            opacity: 0.7,
+                            interactive: true, // Allow interaction
+                        }).addTo(map);
+                        
+                        // Store reference to the polyline object and set the route as visible initially
+                        leafletPolylines[routeId] = polyline;
+                        visibleRoutes.add(routeId);
+
+                        // Add route name to the tooltip
+                        polyline.bindTooltip(route.routeName, { sticky: true });
+
+                        // Extend bounds to include this route
+                        bounds.extend(polyline.getBounds());
+
+                        // Store ALL points in allPoints (needed for click detection, including index)
+                        route.fullPolyline.forEach((point, index) => {
+                            allPoints.push({
+                                lat: point.lat,
+                                lon: point.lon,
+                                index: index, // This is the index in its own route's array
+                                routeId: routeId,
+                                routeName: route.routeName,
+                                routeLength: route.fullPolyline.length,
+                            });
+                        });
+                        
+                        // Generate the toggle UI for the controls panel
+                        const toggleHtml = `
+                            <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" checked data-route-id="${routeId}"
+                                    class="form-checkbox h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500" 
+                                    onchange="window.app.toggleRoute('${routeId}', this.checked)">
+                                <span class="text-sm font-medium text-gray-700 truncate" style="color: ${color};">${route.routeName}</span>
+                            </label>
+                        `;
+                        routeTogglesContainer.innerHTML += toggleHtml;
+                    }
+
+                    // After loading all routes, initialize the clickable points list
+                    updateClickablePoints(); 
+
+                    // Fit the map view to show all routes
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                    
+                    // Draw the initial index markers
+                    drawIndexMarkers();
+
+                    statusMessage.textContent = `Successfully loaded and rendered ${Object.keys(routesData).length} routes. Click on a route to find the index.`;
+                    statusMessage.classList.remove('bg-blue-100', 'text-blue-800');
+                    statusMessage.classList.add('bg-green-100', 'text-green-800');
+                    
+                    // Initialize the stepper controls to the first valid route at index 0
+                    if (firstRouteId) {
+                        initializeStepper(0, firstRouteId);
+                    }
+
+                } catch (error) {
+                    console.error("Failed to load or process routes_polyline_lookup.json:", error);
+                    statusMessage.textContent = `Error loading JSON: ${error.message}. Make sure the file exists and is correctly formatted.`;
+                    statusMessage.classList.remove('bg-blue-100', 'text-blue-800');
+                    statusMessage.classList.add('bg-red-100', 'text-red-800');
+                    statusMessage.classList.remove('hidden');
+                }
+            }
+            
+            /**
+             * Calculates the squared distance between two LatLng objects (approximation).
+             * @param {object} p1 - {lat, lon}
+             * @param {object} p2 - {lat, lon}
+             * @returns {number} The squared distance.
+             */
+            function distanceSq(p1, p2) {
+                // Using squared distance is faster and sufficient for comparison
+                const latDiff = p1.lat - p2.lat;
+                // Correctly calculate the longitude difference
+                const lonDiff = p1.lon - p2.lon; 
+                return (latDiff * latDiff) + (lonDiff * lonDiff);
+            }
+
+            /**
+             * Initializes the manual stepper controls.
+             * @param {number} initialIndex - The starting index (usually 0 or the index from a click).
+             * @param {string} routeId - The ID of the route being debugged.
+             */
+            function initializeStepper(initialIndex, routeId) {
+                const route = routesData[routeId];
+                if (!route) return;
+
+                activeRouteId = routeId;
+                totalRouteLength = route.fullPolyline.length;
+                
+                if (totalRouteLength > 0) {
+                    currentIndexDisplay.textContent = initialIndex;
+                    activeRouteDisplay.textContent = `Active Route: ${route.routeName} (Total Points: ${totalRouteLength})`;
+                    prevButton.disabled = initialIndex === 0;
+                    nextButton.disabled = initialIndex >= totalRouteLength - 1;
+                    
+                    // Manually trigger the display to show the starting point
+                    displayIndexPoint(initialIndex, routeId);
+
+                } else {
+                    activeRouteId = null;
+                    activeRouteDisplay.textContent = "Active Route: N/A. Click a route to begin manual stepping.";
+                    currentIndexDisplay.textContent = '---';
+                    prevButton.disabled = true;
+                    nextButton.disabled = true;
+                }
+            }
+            
+            /**
+             * Displays a specific index point on the map and updates the result card.
+             * @param {number} index - The index number to display.
+             * @param {string} routeId - The ID of the route containing the index.
+             */
+            function displayIndexPoint(index, routeId) {
+                const route = routesData[routeId];
+                if (!route || index < 0 || index >= route.fullPolyline.length) return;
+
+                const point = route.fullPolyline[index];
+                const routeName = route.routeName;
+
+                // Remove previous marker
+                if (lastMarker) {
+                    map.removeLayer(lastMarker);
+                }
+
+                // Place a marker on the exact point
+                const latlng = [point.lat, point.lon];
+                lastMarker = L.circleMarker(latlng, {
+                    radius: 10,
+                    color: 'red',
+                    fillColor: '#f03',
+                    fillOpacity: 1.0 // Fully opaque for debug visibility
+                }).addTo(map);
+                
+                // Re-center map slightly if needed
+                map.setView(latlng, map.getZoom()); 
+
+                // Update result content
+                resultContent.innerHTML = `
+                    <p class="text-2xl font-extrabold text-indigo-700">${index}</p>
+                    <p class="mt-2"><strong>Route ID:</strong> ${routeId}</p>
+                    <p><strong>Route Name:</strong> ${routeName}</p>
+                    <p><strong>Coordinates:</strong> (${point.lat.toFixed(6)}, ${point.lon.toFixed(6)})</p>
+                    <p class="mt-4 text-sm text-gray-500">
+                        This is the **exact point** on the polyline. Use the stepper above to debug the route sequence.
+                    </p>
+                `;
+            }
+
+            /**
+             * Steps the current index forward or backward.
+             * @param {number} direction - 1 for next, -1 for previous.
+             */
+            function stepIndex(direction) {
+                if (activeRouteId === null) return;
+
+                let newIndex = parseInt(currentIndexDisplay.textContent) + direction;
+                
+                if (newIndex >= 0 && newIndex < totalRouteLength) {
+                    currentIndexDisplay.textContent = newIndex;
+                    prevButton.disabled = newIndex === 0;
+                    nextButton.disabled = newIndex >= totalRouteLength - 1;
+                    // Simply call the display function, which will look up the coordinates
+                    displayIndexPoint(newIndex, activeRouteId);
+                }
+            }
+
+
+            /**
+             * Handles map clicks to find the nearest polyline point index.
+             * @param {object} e - Leaflet map click event object.
+             */
+            function onMapClick(e) {
+                if (clickablePoints.length === 0) {
+                    resultContent.textContent = "No visible route data available for clicking. Please select a route.";
+                    return;
+                }
+
+                const clickedLatLng = { lat: e.latlng.lat, lon: e.latlng.lng };
+                let closestPoint = null;
+                let minDistanceSq = Infinity;
+                
+                // Max search radius (in degrees - this is a rough measure)
+                const MAX_SEARCH_DISTANCE_SQ = 0.00001; 
+
+                // Iterate through ONLY the clickablePoints array, which is already filtered by visibility
+                for (const point of clickablePoints) {
+                    // Check for point validity
+                    if (!point || typeof point.lat === 'undefined' || typeof point.lon === 'undefined') {
+                        continue;
+                    }
+                    
+                    const distSq = distanceSq(point, clickedLatLng);
+                    
+                    if (distSq < minDistanceSq && distSq < MAX_SEARCH_DISTANCE_SQ) {
+                        minDistanceSq = distSq;
+                        closestPoint = point;
+                    }
+                }
+
+                if (closestPoint) {
+                    // Update the stepper state based on the clicked point's index and route ID
+                    initializeStepper(closestPoint.index, closestPoint.routeId);
+                    // The displayIndexPoint call inside initializeStepper handles the marker and result content update
+                } else {
+                    // Remove previous marker
+                    if (lastMarker) {
+                        map.removeLayer(lastMarker);
+                    }
+                    resultContent.textContent = "No visible route point found close enough to your click location. Please try clicking directly on a visible line.";
+                }
+            }
+
+            // Expose public functions needed by HTML (the toggle control and stepper)
+            window.app = { toggleRoute, stepIndex };
+
+            // Start the application flow
+            document.addEventListener('DOMContentLoaded', () => {
+                initMap();
+                loadRoutes();
+            });
+
+        })();
+    </script>
+</body>
+</html>

@@ -30,6 +30,7 @@ dependencies:
   pin_code_fields: ^8.0.1 # Likely for phone number/OTP login flow
 
   shared_preferences: ^2.2.2
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../route_segment.dart'; // Import the data model
+import '../route_segment_model.dart'; // Import the data model
 
 /// A list tile representing a single step (Walk, Jeepney, or Transfer) in the route.
 class InstructionTile extends StatelessWidget {

@@ -1,35 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart'; // <--- NEW IMPORT
 
-// Import all screens used in the route map
+// Local Files
 import 'screens/splash_page.dart';
 import 'screens/welcome_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/login_page.dart';
 import 'screens/mfa_page.dart';
-import 'screens/map_screen.dart'; // Your MapScreen
-import 'screens/dashboard_page.dart'; // Team's Dashboard Page
+import 'screens/map_screen.dart'; 
+import 'screens/dashboard_page.dart'; 
+import 'route_controller.dart'; // <--- NEW IMPORT
 
 // Initialize Supabase before running the app
 Future<void> main() async {
-  // Required to run Supabase and other plugin setup before runApp
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
 
-  // Initialize Supabase
   await Supabase.initialize(
     url: 'https://pstnvvhduwzlpphttcvm.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzdG52dmhkdXd6bHBwaHR0Y3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NjIwMzEsImV4cCI6MjA3NDQzODAzMX0.qsRhQuEyf0tn1PgBvg9AQX_g9l9F0cnn96SofgwU7II',
   );
 
-  // Using the new app class name
   runApp(const JeepMiyabeApp());
 }
 
-// Using the new app class name from the 'main' branch
 class JeepMiyabeApp extends StatelessWidget {
   const JeepMiyabeApp({super.key});
 
@@ -38,33 +34,37 @@ class JeepMiyabeApp extends StatelessWidget {
     return MaterialApp(
       title: 'JeepMiyabe Route Finder',
       theme: ThemeData(
-        // Keeping the existing theme setup
         primarySwatch: Colors.indigo,
         useMaterial3: false,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       
-      // Initial route set to SplashPage, which handles session status
       initialRoute: '/', 
       
-      // All app routes, including the /map screen
       routes: {
         '/': (context) => const SplashPage(),
         '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignUpPage(),
         
-        // Use the official DashboardPage from the team's code
-        '/dashboard': (context) => const DashboardPage(), 
+        // 🎯 FIX: Wrap the DashboardPage route with the ChangeNotifierProvider
+        '/dashboard': (context) => ChangeNotifierProvider(
+          create: (context) {
+            final controller = RouteController();
+            // Start loading the graph immediately when entering the Dashboard
+            controller.initialize(); 
+            return controller;
+          },
+          child: const DashboardPage(),
+        ), 
         
-        // Your map screen is now accessible via the /map route
+        // The MapScreen route is no longer strictly needed if MapScreen is embedded in Dashboard
+        // but it's kept here for potential direct access (if MapScreen still exists as a standalone route).
         '/map': (context) => const MapScreen(), 
         
-        // MFA page for multi-factor authentication setup
         '/mfa': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as String?;
           if (args == null) {
-            // Fallback if no email argument
             Navigator.pop(context);
             return const SizedBox.shrink();
           }
