@@ -11,58 +11,66 @@ late final JeepneyGraph jeepneyNetwork = _buildJeepneyGraph();
 
 
 // --- STEP 1: YOUR NODE DATA DEFINITION (UPDATED WITH FINALIZED COORDINATES) ---
-// Function to define all your fixed locations (N01-N40).
+// Function to define all your fixed locations (N01-N44, including skipped numbers).
 Map<String, Node> _defineAllNodes() {
   return {
     // 1. Bayanihan area
-    'N01': Node(id: 'N01', position: const LatLng(15.16815179, 120.5845928), name: 'Bayanihan Jeepney Terminal'),
-    'N02': Node(id: 'N02', position: const LatLng(15.17811297, 120.5872786), name: 'Dau Access Road'),
-    // 2. Clark/Sapang Bato area
-    'N03': Node(id: 'N03', position: const LatLng(15.16300139, 120.5547576), name: 'Fil-Am Friendship Highway'),
-    'N04': Node(id: 'N04', position: const LatLng(15.17094798, 120.5150144), name: 'Sapang Bato Barangay Hall'),
-    // 3. Center/Marquee area
-    'N05': Node(id: 'N05', position: const LatLng(15.16948836, 120.5893172), name: 'Balibago (Road to Dau)'),
-    'N06': Node(id: 'N06', position: const LatLng(15.1625894, 120.5911397), name: 'Marlim Avenue'),
-    'N07': Node(id: 'N07', position: const LatLng(15.16264112, 120.6098998), name: 'Marquee Mall by Ayala Malls'),
-    'N08': Node(id: 'N08', position: const LatLng(15.15371241, 120.6048537), name: 'Pandan-Tabun Road'),
-    'N09': Node(id: 'N09', position: const LatLng(15.14662662, 120.6140651), name: 'San Vicente Street, Capaya'),
-    'N10': Node(id: 'N10', position: const LatLng(15.14591234, 120.6166641), name: 'Nepomuceno & Lazatin, Capaya'),
-    'N11': Node(id: 'N11', position: const LatLng(15.1574636, 120.5918808), name: 'Robinsons Angeles'),
-    'N12': Node(id: 'N12', position: const LatLng(15.152878, 120.592022), name: 'Marisol Roundabout'),
-    // 4. Inner City/Pampang
-    'N13': Node(id: 'N13', position: const LatLng(15.15213532, 120.5917486), name: 'Marisol-Pampang Jeepney Terminal'),
-    'N14': Node(id: 'N14', position: const LatLng(15.14992202, 120.5842488), name: 'Arayat Blvd.'),
-    'N15': Node(id: 'N15', position: const LatLng(15.14662969, 120.58514), name: 'Pampang Market'),
-    'N16': Node(id: 'N16', position: const LatLng(15.14500737, 120.5887147), name: 'Henson'),
-    'N17': Node(id: 'N17', position: const LatLng(15.14526038, 120.5947032), name: 'Angeles University Foundation'),
-    'N18': Node(id: 'N18', position: const LatLng(15.14275954, 120.5965427), name: 'Angeles Intersection/Roundabout'),
-    'N19': Node(id: 'N19', position: const LatLng(15.1388856, 120.5937331), name: '100a Santo Entiero St'),
-    'N20': Node(id: 'N20', position: const LatLng(15.13869647, 120.5897663), name: 'Plaridel-Jesus Street Intersection'),
-    'N21': Node(id: 'N21', position: const LatLng(15.13938125, 120.586597), name: 'Newstar Shopping Mart'),
-    'N22': Node(id: 'N22', position: const LatLng(15.13695709, 120.5864965), name: '248-102 Rizal Street Ext'),
-    'N23': Node(id: 'N23', position: const LatLng(15.13638498, 120.5877395), name: '304 Santo Rosario St, Angeles, Pampanga'),
-    'N24': Node(id: 'N24', position: const LatLng(15.13468955, 120.5903199), name: 'Holy Rosary Parish Church'),
-    'N25': Node(id: 'N25', position: const LatLng(15.13498136, 120.5928773), name: 'Lakandula Street'),
-    'N26': Node(id: 'N26', position: const LatLng(15.13364388, 120.5843272), name: 'Rizal Street Ext (Edit)'),
-    'N27': Node(id: 'N27', position: const LatLng(15.13440605, 120.56695), name: 'Sunset Estates'),
-    'N28': Node(id: 'N28', position: const LatLng(15.12185283, 120.6007274), name: 'SM Telabastagan Terminal'),
-    'N29': Node(id: 'N29', position: const LatLng(15.13414427, 120.5912911), name: 'Holy Angel University'),
-
-    // 5. SM Telabastagan / Southern Extensions
-    'N30': Node(id: 'N30', position: const LatLng(15.12701772, 120.5969441), name: 'Super 8 (San Fernando-Villa Pampang Terminal)'),
-    'N31': Node(id: 'N31', position: const LatLng(15.1253262, 120.598171), name: 'Sacred Heart Medical Center'),
-    'N32': Node(id: 'N32', position: const LatLng(15.12368404, 120.5990172), name: 'Chevalier School'),
-    'N33': Node(id: 'N33', position: const LatLng(15.13784893, 120.5875483), name: 'Jollibee Rotonda, San Nicolas Market'),
-    'N34': Node(id: 'N34', position: const LatLng(15.16821842, 120.5780195), name: 'Public Transport Terminal (SM City Clark)'),
-    'N35': Node(id: 'N35', position: const LatLng(15.16649369, 120.5828515), name: 'Henson Ville Terminal'),
-    'N37': Node(id: 'N37', position: const LatLng(15.15262, 120.583322), name: 'Our Lady of Fatima Parish Church'),
-    'N38': Node(id: 'N38', position: const LatLng(15.15917492, 120.581245), name: 'Scots Restaurant & Cafe'),
-    'N39': Node(id: 'N39', position: const LatLng(15.161209, 120.581741), name: 'Cuz Cuz Laundry and Water station'),
-    'N40': Node(id: 'N40', position: const LatLng(15.129598, 120.575283), name: 'Overpass Intersection'),
+    'N01': Node(id: 'N01', position: const LatLng(15.168122223153073, 120.58459637453271), name: 'Bayanihan Jeepney Terminal'),
+    'N02': Node(id: 'N02', position: const LatLng(15.178132414995723, 120.58728291382715), name: 'Dau Access Road'),
     
+    // 2. Clark/Sapang Bato area
+    'N03': Node(id: 'N03', position: const LatLng(15.16305204732774, 120.55473730830217), name: 'Fil-Am Friendship Highway'),
+    'N04': Node(id: 'N04', position: const LatLng(15.170933172394623, 120.51501727223763), name: 'Sapang Bato Barangay Hall'),
+    
+    // 3. Balibago/Marquee area
+    'N05': Node(id: 'N05', position: const LatLng(15.16946765414794, 120.58930685405767), name: 'Balibago (Road to Dau)'),
+    'N06': Node(id: 'N06', position: const LatLng(15.162560370889945, 120.59107576216996), name: 'Marlim Avenue'),
+    'N07': Node(id: 'N07', position: const LatLng(15.162476539579057, 120.60835134728958), name: 'Marquee Mall by Ayala Malls'),
+    'N08': Node(id: 'N08', position: const LatLng(15.153719303730984, 120.6048240781205), name: 'Pandan-Tabun Road'),
+    'N09': Node(id: 'N09', position: const LatLng(15.146305899131237, 120.61414748914245), name: 'San Vicente Street, Capaya'),
+    'N10': Node(id: 'N10', position: const LatLng(15.14566785692904, 120.61719106223454), name: 'Nepomuceno & Lazatin, Capaya'),
+    'N11': Node(id: 'N11', position: const LatLng(15.157385727790757, 120.59225013133326), name: 'Robinsons Angeles'),
+    'N12': Node(id: 'N12', position: const LatLng(15.15307225795962, 120.59192571795558), name: 'Marisol Roundabout'),
+    
+    // 4. Inner City/Pampang
+    'N13': Node(id: 'N13', position: const LatLng(15.150806937623226, 120.59264629206302), name: 'Marisol-Pampang Jeepney Terminal'),
+    'N14': Node(id: 'N14', position: const LatLng(15.149946558933049, 120.5842657630103), name: 'Arayat Blvd.-Arayat Road'),
+    'N15': Node(id: 'N15', position: const LatLng(15.147178515304587, 120.58615084430178), name: '136 San Francisco St., Angeles, Pampanga'),
+    'N16': Node(id: 'N16', position: const LatLng(15.143470904682285, 120.588363928338), name: 'Henson Ville Terminal'),
+    'N17': Node(id: 'N17', position: const LatLng(15.145477507981582, 120.59523398671675), name: 'Angeles University Foundation'),
+    'N18': Node(id: 'N18', position: const LatLng(15.142692807000863, 120.59652645730344), name: 'Angeles Intersection/Roundabout'),
+    'N19': Node(id: 'N19', position: const LatLng(15.138839458618483, 120.59371441157968), name: '100a Santo Entiero St'),
+    'N20': Node(id: 'N20', position: const LatLng(15.137831061596211, 120.58886265671481), name: 'Miranda-Plaridel Street Intersection'),
+    'N21': Node(id: 'N21', position: const LatLng(15.13937751108868, 120.58659662391537), name: 'Newstar Shopping Mart'),
+    'N22': Node(id: 'N22', position: const LatLng(15.136961541120508, 120.58649797187472), name: '248-102 Rizal Street Ext'),
+    'N23': Node(id: 'N23', position: const LatLng(15.136375922908924, 120.58773799302463), name: '304 Santo Rosario St, Angeles, Pampanga'),
+    'N24': Node(id: 'N24', position: const LatLng(15.134825927046702, 120.59063095384975), name: 'Holy Rosary Parish Church'),
+    'N25': Node(id: 'N25', position: const LatLng(15.135588453717585, 120.59330024080815), name: 'Lakandula Street'),
+    'N26': Node(id: 'N26', position: const LatLng(15.133639713699715, 120.58430415229193), name: 'Rizal Street Ext'),
+    'N27': Node(id: 'N27', position: const LatLng(15.13460213899443, 120.567100472649), name: 'Sunset Estates'),
+    
+    // 5. SM Telabastagan / Southern Extensions
+    'N28': Node(id: 'N28', position: const LatLng(15.12168324431814, 120.60046354507185), name: 'SM Telabastagan Terminal'),
+    'N29': Node(id: 'N29', position: const LatLng(15.134251048500333, 120.59120807974612), name: 'Holy Angel University'),
+    'N30': Node(id: 'N30', position: const LatLng(15.127062195834817, 120.59689172979789), name: 'Super 8 (San Fernando-Villa Pampang Terminal)'),
+    'N31': Node(id: 'N31', position: const LatLng(15.125346577935126, 120.59816782088681), name: 'Sacred Heart Medical Center'),
+    'N32': Node(id: 'N32', position: const LatLng(15.123673715007401, 120.5990014935524), name: 'Chevalier School'),
+    'N33': Node(id: 'N33', position: const LatLng(15.13882801470678, 120.58755922236452), name: 'Jollibee Rotonda, San Nicolas Market'),
+    'N34': Node(id: 'N34', position: const LatLng(15.166489559701413, 120.5771989295957), name: 'Public Transport Terminal (SM City Clark)'),
+    'N35': Node(id: 'N35', position: const LatLng(15.166491757108336, 120.58282696723248), name: 'Henson Ville Terminal'),
+    'N36': Node(id: 'N36', position: const LatLng(15.158228767911242, 120.5921409581609), name: 'Systems Plus Balibago'),
+    
+    // Nodes from the old list that were not in your new list (N37-N39) have been removed
+    // to strictly adhere to the provided data list, but N40 is kept.
+    'N40': Node(id: 'N40', position: const LatLng(15.12968339481647, 120.57538621875474), name: 'Overpass Intersection'),
+    
+    // 6. New nodes from the extended list (N41, N42, N43, N44)
+    'N41': Node(id: 'N41', position: const LatLng(15.144474509315053, 120.55938943379525), name: 'Security Bank, cor Poinsettia Avenue'),
+    'N42': Node(id: 'N42', position: const LatLng(15.152794350180983, 120.59216746673009), name: '7-eleven Ninoy Aquino (Marisol)'),
+    'N43': Node(id: 'N43', position: const LatLng(15.135748021656429, 120.58702364198633), name: 'Nepo Mart'),
+    'N44': Node(id: 'N44', position: const LatLng(15.135941494350044, 120.59146839921544), name: '1225 Miranda-Sto. Entierro St. Intersection'),
   };
 }
-
 // --- STEP 2: JEEPNEY ROUTE EDGE DEFINITIONS (UNCHANGED) ---
 final List<Map<String, dynamic>> rawEdgeDefinitions = [
   // 1. MAIN GATE - FRIENDSHIP (Sand) (Simple Route: Outbound/Inbound)
