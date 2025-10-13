@@ -69,13 +69,18 @@ Map<String, Node> _defineAllNodes() {
     'N42': Node(id: 'N42', position: const LatLng(15.152794350180983, 120.59216746673009), name: '7-eleven Ninoy Aquino (Marisol)'),
     'N43': Node(id: 'N43', position: const LatLng(15.135748021656429, 120.58702364198633), name: 'Nepo Mart'),
     'N44': Node(id: 'N44', position: const LatLng(15.135941494350044, 120.59146839921544), name: '1225 Miranda-Sto. Entierro St. Intersection'),
+    'N48': Node(id: 'N48', position: const LatLng(15.163763689386034, 120.55613180852866), name: 'Mr. Wang Chinese Restaurant'),
+    'N49': Node(id: 'N49', position: const LatLng(15.165155111956631, 120.55881787134152), name: 'Little Chinatown'),
+    'N50': Node(id: 'N50', position: const LatLng(15.1662477040375, 120.56122979357431), name: 'Oasis Entrance'),
+    'N51': Node(id: 'N51', position: const LatLng(15.166656966092535, 120.5647177933902), name: 'Clark Side Entrance'),
+    'N52': Node(id: 'N52', position: const LatLng(15.166168930349212, 120.57024324786535), name: 'Clark Main Gate'),
   };
 }
 // --- STEP 2: JEEPNEY ROUTE EDGE DEFINITIONS (UNCHANGED) ---
 final List<Map<String, dynamic>> rawEdgeDefinitions = [
   // 1. MAIN GATE - FRIENDSHIP (Sand) (Simple Route: Outbound/Inbound)
-  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Outbound', 'color': const Color(0xFFC2B280), 'nodes': ['N03', 'N35']},
-  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Inbound', 'color': const Color(0xFFC2B280), 'nodes': ['N35', 'N03']},
+  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Outbound', 'color': const Color(0xFFC2B280), 'nodes': ['N03', 'N48', 'N49', 'N50', 'N51', 'N35']},
+  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Inbound', 'color': const Color(0xFFC2B280), 'nodes': ['N35','N51','N50','N49', 'N48','N03']},
 
   // 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop Route: Single Entry)
   {'route': 'C\’POINT - BALIBAGO - H\’WAY (Grey) Loop', 'color': const Color(0xFF808080), 'nodes': ['N34', 'N01','N35','N05', 'N06', 'N11', 'N12', 'N14', 'N15', 'N16', 'N33', 'N22', 'N26', 'N23', 'N33', 'N16', 'N15', 'N14', 'N12', 'N11', 'N06', 'N05','N35','N01']},
