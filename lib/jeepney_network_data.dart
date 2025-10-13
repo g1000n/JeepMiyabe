@@ -73,14 +73,22 @@ Map<String, Node> _defineAllNodes() {
     'N49': Node(id: 'N49', position: const LatLng(15.165155111956631, 120.55881787134152), name: 'Little Chinatown'),
     'N50': Node(id: 'N50', position: const LatLng(15.1662477040375, 120.56122979357431), name: 'Oasis Entrance'),
     'N51': Node(id: 'N51', position: const LatLng(15.166656966092535, 120.5647177933902), name: 'Clark Side Entrance'),
-    'N52': Node(id: 'N52', position: const LatLng(15.166168930349212, 120.57024324786535), name: 'Clark Main Gate'),
+    'N53': Node(id: 'N52', position: const LatLng(15.166168930349212, 120.57024324786535), name: 'Don Juico Avenue'),
+    'N52': Node(id: 'N53', position: const LatLng(15.166615217878718, 120.56704796317382), name: 'Don Juico Avenue 2'),
+    'N54': Node(id: 'N54', position: const LatLng(15.166136729276836, 120.57024235353519), name: 'Red Planet Clark'),
+    'N55': Node(id: 'N55', position: const LatLng(15.165387890177486, 120.57471089049888), name: 'Margarita Station'),
+    'N56': Node(id: 'N56', position: const LatLng(15.165285476382685, 120.57575793962214), name: '21st Street'),
+    'N57': Node(id: 'N57', position: const LatLng(15.165609994874618, 120.57855944351667), name: 'Tratorria Altrove'),
+    'N58': Node(id: 'N58', position: const LatLng(15.166484629946067, 120.58290665127366), name: 'Bayad Center'),
+    'N59': Node(id: 'N59', position: const LatLng(15.130152748894668, 120.59507946010962), name: 'LBS Bakeshop Angeles'),
+    'N60': Node(id: 'N60', position: const LatLng(15.13229392333138, 120.59309621180884), name: 'Eggs N Brekky Angeles'),
   };
 }
 // --- STEP 2: JEEPNEY ROUTE EDGE DEFINITIONS (UNCHANGED) ---
 final List<Map<String, dynamic>> rawEdgeDefinitions = [
   // 1. MAIN GATE - FRIENDSHIP (Sand) (Simple Route: Outbound/Inbound)
-  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Outbound', 'color': const Color(0xFFC2B280), 'nodes': ['N03', 'N48', 'N49', 'N50', 'N51', 'N35']},
-  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Inbound', 'color': const Color(0xFFC2B280), 'nodes': ['N35','N51','N50','N49', 'N48','N03']},
+  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Outbound', 'color': const Color(0xFFC2B280), 'nodes': ['N03', 'N48', 'N49', 'N50', 'N51', 'N52', 'N53','N54','N55','N56','N57','N58', 'N35']},
+  {'route': 'MAIN GATE - FRIENDSHIP (Sand) Inbound', 'color': const Color(0xFFC2B280), 'nodes': ['N35','N58','N57','N56','N55','N54','N53','N52','N51','N50','N49', 'N48','N03']},
 
   // 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop Route: Single Entry)
   {'route': 'C\’POINT - BALIBAGO - H\’WAY (Grey) Loop', 'color': const Color(0xFF808080), 'nodes': ['N34', 'N01','N35','N05', 'N06', 'N11', 'N12', 'N14', 'N15', 'N16', 'N33', 'N22', 'N26', 'N23', 'N33', 'N16', 'N15', 'N14', 'N12', 'N11', 'N06', 'N05','N35','N01']},
@@ -112,8 +120,8 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
   {'route': 'SUNSET - NEPO (Orange) Loop', 'color': Colors.deepOrange, 'nodes': ['N27', 'N40','N26','N22','N23','N26','N40']},
 
 // 10. VILLA - PAMPANG SM TELEBESTAGEN (Yellow)
-  {'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Outbound', 'color': Colors.yellow, 'nodes': ['N15', 'N16','N19','N24','N29','N30','N31','N32','N28']},
-  {'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Inbound', 'color': Colors.yellow, 'nodes': ['N28', 'N32', 'N31', 'N30', 'N29', 'N24', 'N19', 'N16', 'N15']},
+  {'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Outbound', 'color': Colors.yellow, 'nodes': ['N15', 'N16','N19','N24','N29','N59','N60','N30','N31','N32','N28']},
+  {'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Inbound', 'color': Colors.yellow, 'nodes': ['N28', 'N32', 'N31', 'N30','N60','N59', 'N29', 'N24', 'N19', 'N16', 'N15']},
 
 // 11. CAPAYA - ANGELES (Pink) - CONVERTED TO A LOOP
   {'route': 'CAPAYA - ANGELES (Pink) Loop', 'color': Colors.pink, 'nodes': ['N10', 'N09', 'N08', 'N18', 'N19','N44','N20','N33','N22','N23','N24','N29','N44','N19', 'N18', 'N08', 'N09']},
