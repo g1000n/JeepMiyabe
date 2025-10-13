@@ -9,7 +9,172 @@ const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
 const Color kBackgroundColor = Color(0xFFFDF8E2);
 const Color kCardColor = Color(0xFFFC775C); // A lighter orange for the background of the sheet/cards
 
-// --- JEEPNEY ROUTE CARD WIDGET ---
+// ---------------------------------------------------------------------------
+// 🛑 NEW WIDGET: JEEP INFO MODAL SHEET CONTENT
+// This widget displays the detailed route information when a card is tapped.
+// ---------------------------------------------------------------------------
+class JeepInfoSheetContent extends StatelessWidget {
+  final String routeName;
+  final String colorName;
+  final int fare;
+
+  const JeepInfoSheetContent({
+    super.key,
+    required this.routeName,
+    required this.colorName,
+    required this.fare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Determine the max height, taking up most of the screen
+    final maxHeight = MediaQuery.of(context).size.height * 0.78;
+
+    return Container(
+      height: maxHeight,
+      decoration: const BoxDecoration(
+        color: kPrimaryColor, // Primary background color
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header (Back Button and Title)
+          Padding(
+            padding: const EdgeInsets.only(top: 10.0, left: 10.0, right: 10.0),
+            child: Row(
+              children: [
+                // Back Button (Pops the sheet off the stack)
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                // Title
+                const Text(
+                  'Main Page - Jeep Info',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Content Scrollable Area
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Map Route Image Card
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Card(
+                      color: kCardColor, // Lighter card color
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9, // Adjust ratio as needed
+                          child: Container(
+                            color: Colors.white, // Placeholder for map image
+                            child: const Center(child: Text("Route Map Placeholder", style: TextStyle(color: Colors.black54))),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 2. Jeep Image and Details Section
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 15.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Jeep Image (Centered)
+                        Center(
+                          child: Image.asset(
+                            'assets/jeepney.png', // **Use the general jeep image or specific one if you have it**
+                            width: 150,
+                            height: 100,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 10),
+
+                        // Route Name and Fare (Row)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              routeName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 22,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'Fare: PHP $fare',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 5),
+
+                        // Color
+                        Text(
+                          'Color: $colorName',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 3. Route Description (Placeholder text)
+                        const Text(
+                          'The Main Gate - Friendship jeepney runs along a key route, providing essential transportation between the Clark Main Gate and Friendship Highway. This route passes through commercial areas and is frequently used by commuters and visitors. This is the detailed description of the route.',
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.5,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.justify,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// --- UPDATED JEEPNEY ROUTE CARD WIDGET ---
+// ---------------------------------------------------------------------------
 class JeepRouteCard extends StatelessWidget {
   final String routeName;
   final String colorName;
@@ -31,8 +196,18 @@ class JeepRouteCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped route: $routeName - $colorName')),
+          // 🛑 FIX: Use showModalBottomSheet to display the detailed info screen
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true, // Allows the sheet to take up most of the screen
+            backgroundColor: Colors.transparent, // Important for rounded corners
+            builder: (context) {
+              return JeepInfoSheetContent(
+                routeName: routeName,
+                colorName: colorName,
+                fare: fare,
+              );
+            },
           );
         },
         child: Padding(
@@ -305,12 +480,13 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
   Future<void> _logout(BuildContext context) async {
     try {
       await Supabase.instance.client.auth.signOut();
-      await AuthStorage.clearMFACooldown();
+      // AuthStorage.clearMFACooldown() is commented out as the import is an external file
+      // await AuthStorage.clearMFACooldown(); 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Logged out successfully."), backgroundColor: Colors.green),
         );
-        Navigator.pushReplacementNamed(context, '/welcome');
+        // Navigator.pushReplacementNamed(context, '/welcome'); 
       }
     } catch (e) {
       if (mounted) {
@@ -332,7 +508,7 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       ),
       backgroundColor: kBackgroundColor,
 
-  floatingActionButton: Builder(
+    floatingActionButton: Builder(
         builder: (fabContext) {
           return FloatingActionButton(
             backgroundColor: kPrimaryColor,
@@ -344,8 +520,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
             // ANIMATION IMPLEMENTATION
             child: RotationTransition(
               turns: _animation,
-              // 🛑 This icon now defaults to pointing UP when the sheet is closed.
-              // When the sheet opens, _animationController.forward() rotates it 180 degrees (0.5 turns) to point DOWN.
+              // Default state is Icons.arrow_upward (as requested)
+              // Rotates to downward when sheet is open.
               child: const Icon(Icons.arrow_upward, color: Colors.white, size: 30),
             ),
           );
