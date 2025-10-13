@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:jeepmiyabe/favorite_place.dart';
 import 'dart:collection';
 import '../jeepney_network_data.dart';
 import '../graph_models.dart';
@@ -7,8 +8,12 @@ import '../geo_utils.dart';
 import '../route_segment.dart';
 import '../route_finder.dart';
 import '../widgets/route_info_bubble.dart';
-import '../widgets/map_search_header.dart'; // We'll keep this but the new header will overlay it
+import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jeepmiyabe/auth_service.dart'; // <--- Required import for getCurrentUserId()
+
+final supabase = Supabase.instance.client;
 
 int _currentStepIndex = 0;
 bool _showStepOverlay = false;
@@ -432,11 +437,57 @@ class _MapScreenState extends State<MapScreen> {
                           icon: Icon(
                               _isFavoriteTo ? Icons.star : Icons.star_border),
                           label: const Text('Favorite To:'),
-                          onPressed: () {
+                          onPressed: () async {
                             setState(() {
                               _isFavoriteTo = !_isFavoriteTo;
                             });
-                          },
+                            if (_isFavoriteTo && _endPoint != null) {
+                              // 🛑 FIX 1: Get User ID 
+                              final userId = getCurrentUserId();
+                              
+                              if (userId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Error: You must be logged in to save favorites.')),
+                                );
+                                // Revert the favorite state
+                                setState(() {
+                                  _isFavoriteTo = false;
+                                });
+                                return; 
+                              }
+                              
+                              final favorite = FavoritePlace(
+                                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                name: 'Favorite Place',
+                                latitude: _endPoint!.latitude,
+                                longitude: _endPoint!.longitude,
+                                description: 'Saved from route',
+                              );
+                              
+                              // 🛑 FIX 2: Use try-catch to handle Supabase errors
+                              try {
+                                await saveFavoriteToBackend(favorite, userId);
+                                
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Added to favorites!')),
+                                );
+                              } catch (e) {
+                                // This catches exceptions thrown by the fixed saveFavoriteToBackend
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to save favorite: ${e.toString().split(':').last.trim()}'),
+                                  ),
+                                );
+                                // Revert the favorite state since the save failed
+                                setState(() {
+                                  _isFavoriteTo = false;
+                                });
+                              }
+                            }
+                          }
                         ),
                       ],
                     ),
