@@ -11,17 +11,15 @@ import '../route_finder.dart';
 
 // UI Components (Refactored Widgets)
 import '../widgets/route_info_bubble.dart'; 
-import '../widgets/map_search_header.dart';
+import '../widgets/map_search_header.dart'; // We'll keep this but the new header will overlay it
 import '../widgets/route_action_button.dart';
 
 // --- COLOR CONSTANTS ADDED HERE ---
 const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
 const Color kBackgroundColor = Color(0xFFFDF8E2); // Light background color (Pale Yellow/Off-White)
-
-// Removed: import '../utils/instructions_sheet.dart'; // Logic is now self-contained
+const Color kHeaderColor = Color(0xFFFFFFFF); // White for the selection header
 
 // --- START Instruction Tile ---
-// This widget displays a single step (segment) of the calculated route.
 class InstructionTile extends StatelessWidget {
   final RouteSegment segment;
   const InstructionTile({super.key, required this.segment});
@@ -42,7 +40,6 @@ class InstructionTile extends StatelessWidget {
         break;
       case SegmentType.TRANSFER:
         icon = Icons.swap_horiz;
-        // UPDATED: Use kPrimaryColor for transfer icon
         iconColor = kPrimaryColor; 
         break;
     }
@@ -83,12 +80,23 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _endPoint;
   List<RouteSegment> _currentRoute = [];
   bool _isSearching = false;
+  bool _isSelectingPoints = false; 
 
   // Camera focused on the sample data area
   static const CameraPosition _initialCameraPosition = CameraPosition(
     target: LatLng(15.1466, 120.5960),
     zoom: 13.5, 
   );
+
+  // 🛑 MAP BOUNDARY CONSTRAINTS (Adjusted for tighter view) 🛑
+  static final LatLngBounds _cameraBounds = LatLngBounds(
+    southwest: const LatLng(15.05, 120.50), 
+    northeast: const LatLng(15.25, 120.70), 
+  );
+  // Increased Min Zoom Level (tighter zoom-out limit)
+  static const double _minZoomLevel = 12.0; 
+  static const double _maxZoomLevel = 18.0;
+
 
   // --- COMPUTED PROPERTIES (Used for the UI components) ---
   double get _totalTime => _currentRoute.fold(0.0, (sum, item) => sum + item.durationMin);
@@ -99,6 +107,22 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _loadNetworkVisualization(); 
+  }
+
+  /// Enables the user to tap the map to set start and end points.
+  void _enablePointSelection() {
+    setState(() {
+      // If a route is already set, clear it first
+      if (_startPoint != null || _endPoint != null) {
+        _clearRoute(); // This sets _isSelectingPoints = false internally
+      }
+      // Then, enable the selection mode
+      _isSelectingPoints = true; 
+    });
+    // Show a hint
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Point selection ENABLED. Tap the map to set Start Location.')),
+    );
   }
 
   /// Loads all nodes as markers and all route segments as faint polylines
@@ -113,10 +137,8 @@ class _MapScreenState extends State<MapScreen> {
         Marker(
           markerId: MarkerId(node.id),
           position: node.position,
-          // FIX: Prevent InfoWindow from popping up and manually trigger map tap logic
           infoWindow: InfoWindow.noText, 
           onTap: () => _onMapTapped(node.position), 
-          // UPDATED: Changed from hueViolet to hueOrange
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           alpha: 0.6, 
         ),
@@ -153,7 +175,7 @@ class _MapScreenState extends State<MapScreen> {
             color: edge.routeColor.withOpacity(0.5), 
             width: 3,
             zIndex: 1, 
-        ),
+          ),
         );
         polylineIndex++;
       }
@@ -165,13 +187,10 @@ class _MapScreenState extends State<MapScreen> {
 
   /// Handles map tap events to set start and end points for route finding.
   void _onMapTapped(LatLng tapPosition) {
-    if (_isSearching) return;
+    if (!_isSelectingPoints || _isSearching) return;
     
-    // Removed aggressive popUntil
-
     setState(() {
       if (_startPoint == null) {
-        // Set Start Point
         _startPoint = tapPosition;
         _endPoint = null;
         _currentRoute.clear();
@@ -181,20 +200,18 @@ class _MapScreenState extends State<MapScreen> {
           const SnackBar(content: Text('Start point set (Green marker). Tap again for Destination.')),
         );
       } else if (_endPoint == null) {
-        // Set End Point and Find Route
         _endPoint = tapPosition;
         _updateMarkers();
+        _isSelectingPoints = false; 
         _findRoute();
       } else {
-        // Clear everything if both are set
         _clearRoute();
+        _isSelectingPoints = true;
       }
     });
   }
 
-  /// Updates the temporary user markers (Start/End) on the map.
   void _updateMarkers() {
-    // Remove old user markers
     _markers.removeWhere((m) => m.markerId.value.startsWith('USER_'));
 
     if (_startPoint != null) {
@@ -223,7 +240,6 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  /// Executes the pathfinding logic.
   Future<void> _findRoute() async {
     if (_startPoint == null || _endPoint == null) return;
 
@@ -242,7 +258,7 @@ class _MapScreenState extends State<MapScreen> {
         _drawRoutePolylines(segments);
       });
 
-      if (segments.isNotEmpty) { // <-- Call instructions here
+      if (segments.isNotEmpty) { 
         _showInstructionsSheet();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -261,10 +277,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  /// Clears the current route result and reloads the network dashboard view.
   void _clearRoute() {
-    // Removed aggressive popUntil
-
     setState(() {
       _startPoint = null;
       _endPoint = null;
@@ -272,10 +285,10 @@ class _MapScreenState extends State<MapScreen> {
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
       _updateMarkers(); 
       _loadNetworkVisualization(); 
+      _isSelectingPoints = false;
     });
   }
 
-  /// Draws the calculated RouteSegments on the map using distinctive polylines.
   void _drawRoutePolylines(List<RouteSegment> segments) {
     int index = 0;
     for (var segment in segments) {
@@ -286,13 +299,12 @@ class _MapScreenState extends State<MapScreen> {
           color: segment.color,
           width: segment.type == SegmentType.WALK ? 3 : 6,
           patterns: segment.type == SegmentType.WALK
-              ? [PatternItem.dash(10), PatternItem.gap(5)] // Dashed line for walking
+              ? [PatternItem.dash(10), PatternItem.gap(5)]
               : const <PatternItem>[],
           zIndex: 10, 
         ),
       );
     }
-    // Pan camera to view the entire route (Logic unchanged)
     _mapController?.animateCamera(
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
@@ -305,17 +317,15 @@ class _MapScreenState extends State<MapScreen> {
             _currentRoute.expand((s) => s.path).map((p) => p.longitude).reduce((a, b) => a > b ? a : b),
           ),
         ),
-        100.0, // padding
+        100.0,
       ),
     );
   }
 
-  /// Shows the bottom sheet containing the step-by-step instructions.
   void _showInstructionsSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      // UPDATED: Set the modal color for kBackgroundColor if the overall theme isn't set
       backgroundColor: kBackgroundColor,
       builder: (context) {
         return DraggableScrollableSheet(
@@ -324,7 +334,7 @@ class _MapScreenState extends State<MapScreen> {
           maxChildSize: 0.9,
           expand: false,
           builder: (_, scrollController) {
-            return Container( // Added Container to enforce background color
+            return Container( 
               color: kBackgroundColor,
               child: Column(
                 children: [
@@ -362,45 +372,113 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
   
+  Widget _buildSelectionHeader() {
+    String fromText = _startPoint == null 
+        ? 'Tap map to set Start Point' 
+        : 'FROM: ${getApproximateLocationName(_startPoint!)}';
+        
+    String toText = _endPoint == null
+        ? (_startPoint == null ? 'Tap "Start New Route" to begin' : 'Tap map to set Destination')
+        : 'TO: ${getApproximateLocationName(_endPoint!)}';
+
+    TextStyle statusStyle = const TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 40, left: 20, right: 20),
+      padding: const EdgeInsets.all(15.0),
+      decoration: BoxDecoration(
+        color: kHeaderColor,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        minimum: const EdgeInsets.only(top: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.trip_origin, color: Colors.green.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    fromText,
+                    style: statusStyle.copyWith(
+                      color: _startPoint != null ? Colors.black : Colors.grey.shade600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 10, thickness: 1),
+            Row(
+              children: [
+                Icon(Icons.location_on, color: Colors.red.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    toText,
+                    style: statusStyle.copyWith(
+                      color: _endPoint != null ? Colors.black : Colors.grey.shade600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
-    // UPDATED: Use kPrimaryColor directly instead of Theme.of(context).primaryColor
-    // This ensures the orange-red color is used if the theme is not yet configured.
     final primaryColor = kPrimaryColor; 
 
     return Scaffold(
       extendBodyBehindAppBar: true, 
-      // If you want the main scaffold background to be this color, uncomment:
-      // backgroundColor: kBackgroundColor,
       body: Stack(
         children: [
-          // 1. Google Map Widget (The base layer)
           GoogleMap(
             initialCameraPosition: _initialCameraPosition,
             onMapCreated: (controller) => _mapController = controller,
             markers: _markers,
             polylines: _polylines,
-            onTap: _onMapTapped,
+            onTap: _onMapTapped, 
             myLocationEnabled: true,
             myLocationButtonEnabled: false, 
-            // ADJUSTED PADDING since the bottom bar is removed 
-            padding: const EdgeInsets.only(bottom: 100.0), 
+            padding: EdgeInsets.only(bottom: 100.0, top: _isSelectingPoints ? 150.0 : 0), 
             zoomControlsEnabled: false,
+            cameraTargetBounds: CameraTargetBounds(_cameraBounds),
+            minMaxZoomPreference: const MinMaxZoomPreference(_minZoomLevel, _maxZoomLevel),
           ),
 
-          // 2. Custom Top Header/Search Bar (Using the new widget)
+          if (_isSelectingPoints)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildSelectionHeader(),
+            )
+          else 
           Positioned(
             top: 40,
             left: 20,
             right: 20,
             child: SafeArea(
-              // primaryColor is now kPrimaryColor
               child: MapSearchHeader(primaryColor: primaryColor),
             ),
           ),
 
-          // 3. Floating Route Information Bubble (Using the new widget)
-          if (_currentRoute.isNotEmpty)
+          if (_currentRoute.isNotEmpty && !_isSelectingPoints)
             Positioned(
               top: 350, 
               left: MediaQuery.of(context).size.width / 2 - 80, 
@@ -410,21 +488,25 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // 4. Floating Button: 'Tap to set start point' / 'Clear Route' (KEPT)
           Positioned(
             bottom: 110, 
             right: 20, 
             child: RouteActionButton(
-              // primaryColor is now kPrimaryColor
               primaryColor: primaryColor,
               isSearching: _isSearching,
               startPointSet: _startPoint != null,
               endPointSet: _endPoint != null,
               clearRoute: _clearRoute,
+              isSelectingPoints: _isSelectingPoints,
+              enableSelection: _enablePointSelection,
             ),
           ),
         ],
       ),
     );
+  }
+
+  String getApproximateLocationName(LatLng point) {
+    return 'Marker Location (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
   }
 }

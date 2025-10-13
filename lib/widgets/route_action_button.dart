@@ -7,6 +7,10 @@ class RouteActionButton extends StatelessWidget {
   final bool startPointSet;
   final bool endPointSet;
   final VoidCallback clearRoute;
+  // 💡 NEW PROPERTIES
+  final bool isSelectingPoints;
+  final VoidCallback enableSelection;
+  // 💡 END NEW PROPERTIES
 
   const RouteActionButton({
     super.key,
@@ -15,6 +19,10 @@ class RouteActionButton extends StatelessWidget {
     required this.startPointSet,
     required this.endPointSet,
     required this.clearRoute,
+    // 💡 REQUIRED NEW PROPERTIES
+    required this.isSelectingPoints,
+    required this.enableSelection,
+    // 💡 END REQUIRED NEW PROPERTIES
   });
 
   @override
@@ -28,30 +36,27 @@ class RouteActionButton extends StatelessWidget {
       text = 'Searching...';
       icon = Icons.hourglass_top;
       color = Colors.grey;
-      action = () {};
-    } else if (!startPointSet) {
-      text = 'Tap to Set Start Point';
-      icon = Icons.location_on;
-      color = primaryColor;
-      action = () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tap the map to set your starting location.')),
-        );
-      };
-    } else if (!endPointSet) {
-      text = 'Tap to Set Destination';
-      icon = Icons.location_on;
-      color = primaryColor;
-      action = () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tap the map to set your destination.')),
-        );
-      };
-    } else {
+      action = () {}; // No action while searching
+    } else if (startPointSet && endPointSet) {
+      // Route is set, show Clear button
       text = 'Clear Route';
       icon = Icons.clear;
       color = Colors.red.shade700;
       action = clearRoute;
+    } else if (isSelectingPoints) {
+      // Selection mode is ON, but route is incomplete (start or end not set yet)
+      // The button becomes passive, just showing status. Tapping is done on the map.
+      text = !startPointSet ? 'Tap Map for Start' : 'Tap Map for Destination';
+      icon = Icons.location_searching;
+      color = Colors.blue.shade700;
+      action = () {}; // Passive action, tapping happens on the map
+    } 
+    else {
+      // Selection mode is OFF, user must press the button to start
+      text = 'Start New Route';
+      icon = Icons.map;
+      color = primaryColor;
+      action = enableSelection; // Calls the function to enable map tapping
     }
 
     return ElevatedButton.icon(

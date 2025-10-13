@@ -59,6 +59,7 @@ Map<String, Node> _defineAllNodes() {
     'N38': Node(id: 'N38', position: const LatLng(15.15917492, 120.581245), name: 'Scots Restaurant & Cafe'),
     'N39': Node(id: 'N39', position: const LatLng(15.161209, 120.581741), name: 'Cuz Cuz Laundry and Water station'),
     'N40': Node(id: 'N40', position: const LatLng(15.129598, 120.575283), name: 'Overpass Intersection'),
+    
   };
 }
 
