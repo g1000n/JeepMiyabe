@@ -1,11 +1,108 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/auth_storage.dart';  // Adjust path to your AuthStorage file
-import 'profile_page.dart';  // Import the new ProfilePage (adjust path)
-import 'map_screen.dart';    // Import your MapScreen
+import '../utils/auth_storage.dart'; // Adjust path to your AuthStorage file
+import 'profile_page.dart'; // Import the new ProfilePage (adjust path)
+import 'map_screen.dart'; // Import your MapScreen
 
-const Color kPrimaryColor = Color(0xFFE4572E);  // App's primary orange-red
+// --- CONSTANTS ---
+const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
 const Color kBackgroundColor = Color(0xFFFDF8E2);
+const Color kCardColor = Color(0xFFFC775C); // A lighter orange for the background of the sheet/cards
+
+// --- JEEPNEY ROUTE CARD WIDGET ---
+class JeepRouteCard extends StatelessWidget {
+  final String routeName;
+  final String colorName;
+  final int fare;
+
+  const JeepRouteCard({
+    super.key,
+    required this.routeName,
+    required this.colorName,
+    required this.fare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: kCardColor,
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Tapped route: $routeName - $colorName')),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/jeepney.png', // **Ensure this asset exists and path is correct**
+                width: 50,
+                height: 35,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      routeName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Color: $colorName',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'More Info',
+                      style: TextStyle(fontSize: 9, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Fare: ₱$fare',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+// ---------------------------------------------------------------------------
+
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -14,74 +111,170 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
-  final PageController _pageController = PageController();  // For sliding effect
+  final PageController _pageController = PageController();
 
-  // V V V V V V V V V V V V V V V V V V V V V V V V V V V V V V V V 
-  // FIX 1: MapScreen moved to Index 0 (Home Tab)
+  // STATE VARIABLES FOR PERSISTENT SHEET AND ANIMATION
+  bool _isJeepListSheetOpen = false;
+  PersistentBottomSheetController? _bottomSheetController;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+  
+  // Dynamic elevations to hide shadows when sheet is open
+  double get _fabElevation => _isJeepListSheetOpen ? 0.0 : 4.0;
+  double get _appBarElevation => _isJeepListSheetOpen ? 0.0 : 8.0;
+
   final List<Widget> _pages = [
-    const MapScreen(),  // Index 0: MapScreen is the Home view
+    const MapScreen(), // Index 0: Home view (MapScreen)
     const Center(child: Text('About Us Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 1
-    const Center(child: Text('Center Button Activated', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 2: Center FAB
+    const SizedBox.shrink(), // Placeholder for FAB (Index 2)
     const Center(child: Text('Favorites Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 3
-    const ProfilePage(),  // Index 4: ProfilePage
+    const ProfilePage(), // Index 4: ProfilePage
   ];
-  // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ 
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize AnimationController for the FAB icon
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    // Defines the rotation range (0.0 to 0.5 for 180 degrees)
+    _animation = Tween<double>(begin: 0.0, end: 0.5).animate(_animationController);
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _animationController.dispose();
+    _bottomSheetController?.close();
     super.dispose();
   }
 
-  // Function to handle tab changes with slide animation
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,  // Smooth sliding curve
-    );
-    debugPrint('Tapped index: $index');
-  }
+  // UPDATED: Uses Scaffold.of().showBottomSheet for a PERSISTENT sheet
+  void _onFabTapped(BuildContext fabContext) {
+    // 1. Get the Scaffold state using the correct context (fabContext)
+    final ScaffoldState scaffoldState = Scaffold.of(fabContext);
+    
+    if (_isJeepListSheetOpen) {
+      // 2. If sheet is open, close it (Dismiss animation)
+      _animationController.reverse();
+      _bottomSheetController?.close();
+      
+    } else {
+      // 3. If sheet is closed, open it (Show animation)
+      _animationController.forward();
+      
+      // Show the persistent bottom sheet and save the controller
+      _bottomSheetController = scaffoldState.showBottomSheet(
+        (context) => _buildJeepListSheetContent(),
+        backgroundColor: Colors.transparent,
+        
+        // Max height constraint to leave space for the BottomAppBar (65)
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height - 
+                       MediaQuery.of(context).padding.top - 
+                       65 
+        ),
+      );
 
-  // Logout function: Clears session and cooldown, navigates to welcome
-  Future<void> _logout() async {
-    try {
-      await Supabase.instance.client.auth.signOut();  
-      await AuthStorage.clearMFACooldown();           
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Logged out successfully."),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pushReplacementNamed(context, '/welcome');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Logout failed: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // 4. Handle cleanup when the sheet is dismissed (e.g., by dragging down)
+      _bottomSheetController!.closed.then((_) {
+        if (mounted) {
+          setState(() {
+            _isJeepListSheetOpen = false;
+            _bottomSheetController = null;
+            // Ensure arrow points down when manually dismissed
+            _animationController.reverse(from: _animationController.value); 
+          });
+        }
+      });
+
+      // 5. Update state and trigger rebuild for elevation change
+      setState(() {
+        _isJeepListSheetOpen = true;
+      });
     }
+    debugPrint('Floating Action Button activated: Sheet is now ${_isJeepListSheetOpen ? "OPEN" : "CLOSED"}.');
   }
 
-  // Helper widget to build the individual navigation items (Home, About Us, Favorites, Profile)
-  Widget _buildNavItem({
-    required int index,
-    required IconData icon,
-    required String label,
-  }) {
-    // Index 2 is reserved for the FloatingActionButton, so we skip it for the row layout.
-    if (index == 2) return const SizedBox.shrink(); 
+  // Sheet content for FULL-WIDTH
+  Widget _buildJeepListSheetContent() {
+    return Container(
+      // Ensure full width
+      width: double.infinity, 
+      decoration: BoxDecoration(
+        color: kPrimaryColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          // Keep the sheet's shadow over the MapScreen
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag Handle
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.white54,
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+          // Title
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(
+              'Main Page - Jeep List',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          // List of Jeepney Cards
+          SizedBox(
+            height: 300, 
+            child: ListView(
+              shrinkWrap: true,
+              children: const [
+                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Sand', fare: 12),
+                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Pink', fare: 13),
+                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Blue', fare: 15),
+                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Yellow', fare: 14),
+                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Red', fare: 16),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _onItemTapped(int index) {
+    if (index == 2) return;
+    setState(() => _selectedIndex = index);
+    _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+  }
+
+  Widget _buildNavItem({required int index, required IconData icon, required String label}) {
+    if (index == 2) return const SizedBox.shrink();
 
     final bool isSelected = _selectedIndex == index;
     final Color iconColor = isSelected ? Colors.white : Colors.white70;
@@ -99,11 +292,7 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 2),
               Text(
                 label,
-                style: TextStyle(
-                  color: iconColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(color: iconColor, fontSize: 10, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -112,55 +301,77 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Logout function (for completeness)
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+      await AuthStorage.clearMFACooldown();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Logged out successfully."), backgroundColor: Colors.green),
+        );
+        Navigator.pushReplacementNamed(context, '/welcome');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Logout failed: $e"), backgroundColor: Colors.red));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: PageView(  // Sliding container for pages
+        child: PageView(
           controller: _pageController,
-          // V V V V V V V V V V V V V V V V V V V V V V V V V V V V V V V V 
-          physics: const NeverScrollableScrollPhysics(), // <--- FIX 2: DISABLE SWIPING
-          // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ 
-          onPageChanged: (index) {
-            setState(() => _selectedIndex = index);  // Sync index on swipe
-          },
-          children: _pages.map((page) => page).toList(),
+          physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: (index) => setState(() => _selectedIndex = index),
+          children: _pages,
         ),
       ),
       backgroundColor: kBackgroundColor,
-      
-      // The raised, custom center button (Index 2)
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: kPrimaryColor, // Orange color
-        shape: const CircleBorder(),
-        onPressed: () => _onItemTapped(2), // Activates the Center FAB view
-        elevation: 4.0, // A slight elevation to make it stand out
-        child: const Icon(Icons.arrow_upward, color: Colors.white, size: 30),
+
+  floatingActionButton: Builder(
+        builder: (fabContext) {
+          return FloatingActionButton(
+            backgroundColor: kPrimaryColor,
+            shape: const CircleBorder(),
+            onPressed: () => _onFabTapped(fabContext),
+            // FIX: Control elevation to remove shadow when open
+            elevation: _fabElevation, 
+            
+            // ANIMATION IMPLEMENTATION
+            child: RotationTransition(
+              turns: _animation,
+              // 🛑 This icon now defaults to pointing UP when the sheet is closed.
+              // When the sheet opens, _animationController.forward() rotates it 180 degrees (0.5 turns) to point DOWN.
+              child: const Icon(Icons.arrow_upward, color: Colors.white, size: 30),
+            ),
+          );
+        }
       ),
-      
-      // Position the FloatingActionButton centrally and docked
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      
-      // The custom bottom navigation bar
+
+      // Bottom Navigation Bar
       bottomNavigationBar: BottomAppBar(
-        color: kPrimaryColor, // Solid orange background
-        shape: const CircularNotchedRectangle(), // Cutout shape for the FAB
-        notchMargin: 8.0, // Space between the FAB and the bottom bar
-        padding: EdgeInsets.zero, // Remove default padding
-        height: 65, // Fixed height for a sleek look
+        color: kPrimaryColor,
+        // FIX: Control elevation to remove the line/shadow when open
+        elevation: _appBarElevation, 
+        
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        padding: EdgeInsets.zero,
+        height: 65,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: <Widget>[
-            // Left items
             _buildNavItem(index: 0, icon: Icons.home, label: 'Home'),
             _buildNavItem(index: 1, icon: Icons.list, label: 'About Us'),
-
-            // Spacer for the Floating Action Button
-            const SizedBox(width: 40), 
-
-            // Right items
+            const SizedBox(width: 40),
             _buildNavItem(index: 3, icon: Icons.bookmark, label: 'Favorites'),
-            _buildNavItem(index: 4, icon: Icons.person, label: 'Profile'),  // Now slides to ProfilePage
+            _buildNavItem(index: 4, icon: Icons.person, label: 'Profile'),
           ],
         ),
       ),
