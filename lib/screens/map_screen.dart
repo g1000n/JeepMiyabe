@@ -459,7 +459,10 @@ class _MapScreenState extends State<MapScreen> {
             zoomControlsEnabled: false,
             cameraTargetBounds: CameraTargetBounds(_cameraBounds),
             minMaxZoomPreference: const MinMaxZoomPreference(_minZoomLevel, _maxZoomLevel),
+            // 🛑 ADDED: Disables the map toolbar and the keyboard shortcuts popup
+            mapToolbarEnabled: false,
           ),
+
 
           if (_isSelectingPoints)
             Positioned(
