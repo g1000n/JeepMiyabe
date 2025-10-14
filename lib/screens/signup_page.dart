@@ -42,13 +42,11 @@ class _SignUpPageState extends State<SignUpPage> {
           'username': username,
           'email': email,
           'created_at': DateTime.now().toIso8601String(),
+          //TODO: add password field if needed
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Account created! Please check your email to verify.")),
-          );
-          Navigator.pop(context);
+          Navigator.pushReplacementNamed(context, '/verify');
         }
       }
     } catch (e) {
@@ -59,8 +57,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
     setState(() => _loading = false);
   }
-
-
 
   //Style
   InputDecoration _inputDecoration(String hint, {Widget? suffix}) {

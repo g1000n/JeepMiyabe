@@ -384,38 +384,28 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     'nodes': [
       'N34',
       'N01',
+      'N35',
       'N05',
       'N06',
       'N11',
       'N12',
       'N14',
       'N15',
-      'N65',
-      'N64',
       'N16',
-      'N71',
       'N33',
       'N22',
+      'N26',
       'N23',
-      'N24',
-      'N29',
-      'N68',
-      'N69',
-      'N44',
-      'N20',
       'N33',
-      'N71',
       'N16',
-      'N64',
-      'N65',
       'N15',
       'N14',
       'N12',
       'N11',
       'N06',
       'N05',
-      'N01',
-      'N34'
+      'N35',
+      'N01'
     ]
   },
 
@@ -660,10 +650,7 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     'nodes': [
       'N10',
       'N09',
-      'N70',
-      'N66',
       'N08',
-      'N67',
       'N18',
       'N19',
       'N44',
@@ -673,15 +660,10 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N23',
       'N24',
       'N29',
-      'N68',
-      'N69',
       'N44',
       'N19',
       'N18',
-      'N67',
       'N08',
-      'N66',
-      'N70',
       'N09'
     ]
   },
@@ -761,22 +743,25 @@ JeepneyGraph _buildJeepneyGraph() {
         final firstPos = allNodes[firstId]!.position;
         final weight = calculateJeepneyWeight(lastPos, firstPos);
 
-        final loopEdge = Edge(
+        final edge = Edge(
           startNodeId: lastId,
           endNodeId: firstId,
           weight: weight,
           routeName: routeName,
-          routeColorName:
-              routeColorName, // <-- FIX: Passing the required string name
+          routeColorName: routeColorName,
           routeColor: routeColor,
           polylinePoints: [lastPos, firstPos],
         );
-        adjacencyList.putIfAbsent(lastId, () => []).add(loopEdge);
+
+        adjacencyList.putIfAbsent(lastId, () => []).add(edge);
+      } else {
+        print(
+            'Error: Missing loop endpoints for $routeName: $lastId → $firstId');
       }
     }
   }
 
-  // Return the final JeepneyGraph instance
+  // Finally, build and return the graph
   return JeepneyGraph(
     nodes: allNodes,
     adjacencyList: adjacencyList,
