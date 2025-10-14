@@ -3,6 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 final supabase = Supabase.instance.client;
 
+// ---------------------------------------------------------------------------
+// Model: FavoritePlace
+// ---------------------------------------------------------------------------
 class FavoritePlace {
   final String id;
   final String name;
@@ -20,45 +23,48 @@ class FavoritePlace {
 
   LatLng get position => LatLng(latitude, longitude);
 
-  // Serialization for backend/local storage
+  // Serialization for backend/local storage (converting model to JSON for API call)
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'latitude': latitude,
-        'longitude': longitude,
-        'description': description,
-      };
+    'id': id,
+    'name': name,
+    'latitude': latitude,
+    'longitude': longitude,
+    'description': description,
+  };
 
+  // Deserialization from JSON (creating model from API response)
   factory FavoritePlace.fromJson(Map<String, dynamic> json) => FavoritePlace(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        latitude: (json['latitude'] as num).toDouble(),
-        longitude: (json['longitude'] as num).toDouble(),
-        description: json['description'] as String?,
-      );
+    id: json['id'].toString(), // Ensure ID is always a string
+    name: json['name'] as String,
+    latitude: (json['latitude'] as num).toDouble(),
+    longitude: (json['longitude'] as num).toDouble(),
+    description: json['description'] as String?,
+  );
 }
 
-// Function to save a new favorite place to Supabase
+// ---------------------------------------------------------------------------
+// Supabase Functions for Favorites
+// ---------------------------------------------------------------------------
+
+/// Saves a new favorite place to the Supabase 'favorites' table.
 Future<void> saveFavoriteToBackend(FavoritePlace favorite, String userId) async {
   try {
-    // Attempt the insert. On success, it returns or resolves without error.
     await supabase.from('favorites').insert({
       'user_id': userId,
       'name': favorite.name,
       'latitude': favorite.latitude,
       'longitude': favorite.longitude,
       'description': favorite.description,
+      // 'created_at' and 'id' should be handled by Supabase database defaults
     });
   } on PostgrestException catch (e) {
-    // Catch a specific database error (e.g., table not found, RLS policy denied)
-    throw Exception('Supabase Database Error: ${e.message}');
+    throw Exception('Supabase Database Error (Save): ${e.message}');
   } catch (e) {
-    // Catch general errors (e.g., network timeout)
     throw Exception('Failed to save favorite due to an unexpected error: $e');
   }
 }
 
-// Function to delete a favorite place from Supabase
+/// Deletes a favorite place from Supabase by matching coordinates and user ID.
 Future<void> deleteFavoriteFromBackend(
     double latitude, double longitude, String userId) async {
   if (userId.isEmpty) {
@@ -73,7 +79,7 @@ Future<void> deleteFavoriteFromBackend(
         .eq('user_id', userId)
         .eq('latitude', latitude)
         .eq('longitude', longitude)
-        .select(); // Use .select() to confirm rows were deleted
+        .select();
 
     if (result.isEmpty) {
       print('Warning: Attempted to delete a non-existent favorite for user $userId.');
@@ -87,7 +93,39 @@ Future<void> deleteFavoriteFromBackend(
   }
 }
 
-// 🚀 NEW FUNCTION: Checks if a place is favorited by the user
+/// Fetches all saved favorite places for a specific user ID.
+Future<List<FavoritePlace>> fetchFavoritesForUser(String userId) async {
+  if (userId.isEmpty) {
+    return [];
+  }
+
+  try {
+    // 1. Query the 'favorites' table for records matching the user_id
+    final response = await supabase
+        .from('favorites')
+        .select()
+        .eq('user_id', userId)
+        .order('id', ascending: false); // Optional: order by ID or creation date
+
+    // 2. Map the list of JSON objects (List<Map<String, dynamic>>) to a list of FavoritePlace objects
+    final favorites = (response as List).map((json) {
+      return FavoritePlace.fromJson({
+        ...json,
+        // The factory constructor handles converting the database ID to a String
+      });
+    }).toList();
+
+    return favorites;
+  } on PostgrestException catch (e) {
+    print('Supabase fetch favorites error: ${e.message}');
+    throw Exception('Failed to load favorites: ${e.message}'); // Throw exception to be caught by FutureBuilder
+  } catch (e) {
+    print('Unexpected error fetching favorites: $e');
+    throw Exception('An unexpected error occurred: $e');
+  }
+}
+
+/// Checks if a place is favorited by the user based on coordinates.
 Future<bool> isFavoriteInBackend(
     double latitude, double longitude, String userId) async {
   if (userId.isEmpty) {
@@ -101,7 +139,8 @@ Future<bool> isFavoriteInBackend(
         .select('id') // Only fetch the ID for efficiency
         .eq('user_id', userId)
         .eq('latitude', latitude)
-        .eq('longitude', longitude);
+        .eq('longitude', longitude)
+        .limit(1); // Stop after finding the first match
 
     // If the response list is NOT empty, a matching favorite exists
     return response.isNotEmpty;

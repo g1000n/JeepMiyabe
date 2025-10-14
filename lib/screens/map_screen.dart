@@ -13,8 +13,12 @@ import '../widgets/route_action_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jeepmiyabe/auth_service.dart'; // <--- Required import for getCurrentUserId()
 
+// NOTE: You must initialize Supabase in your main.dart for this to work.
+// Since you provided the code snippet, I'll keep the variable here but 
+// it will assume proper initialization in the main app.
 final supabase = Supabase.instance.client;
 
+// Global state variables for the overlays (static/top-level variables)
 int _currentStepIndex = 0;
 bool _showStepOverlay = false;
 
@@ -74,7 +78,17 @@ class InstructionTile extends StatelessWidget {
 // --- END Instruction Tile ---
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final double initialLatitude;
+  final double initialLongitude;
+  final double initialZoom;
+
+  const MapScreen({
+    super.key,
+    // Provide default values here, like the original hardcoded ones
+    this.initialLatitude = 15.1466, 
+    this.initialLongitude = 120.5960,
+    this.initialZoom = 13.5,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -91,12 +105,6 @@ class _MapScreenState extends State<MapScreen> {
   List<RouteSegment> _currentRoute = [];
   bool _isSearching = false;
   bool _isSelectingPoints = false;
-
-  // Camera focused on the sample data area
-  static const CameraPosition _initialCameraPosition = CameraPosition(
-    target: LatLng(15.1466, 120.5960),
-    zoom: 13.5,
-  );
 
   // 🛑 MAP BOUNDARY CONSTRAINTS (Adjusted for tighter view) 🛑
   static final LatLngBounds _cameraBounds = LatLngBounds(
@@ -264,7 +272,8 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _isSearching = true;
       _currentRoute.clear();
-      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
+      // Remove network lines (optional, but keeps map clean)
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_')); 
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
     });
     try {
@@ -304,6 +313,7 @@ class _MapScreenState extends State<MapScreen> {
       _isSelectingPoints = false;
       _isConfirmed = false;
       _isFavoriteTo = false;
+      _showStepOverlay = false; // Hide step overlay on clear
     });
   }
 
@@ -323,234 +333,246 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
     }
+    
+    if (segments.isEmpty) return; // Avoid calculating bounds on empty route
+
+    // Calculate bounds from all polyline points
+    final allPoints = segments.expand((s) => s.path).toList();
+    
+    // Check if we have enough points
+    if (allPoints.length < 2) return;
+
+    double minLat = allPoints.map((p) => p.latitude).reduce((a, b) => a < b ? a : b);
+    double maxLat = allPoints.map((p) => p.latitude).reduce((a, b) => a > b ? a : b);
+    double minLng = allPoints.map((p) => p.longitude).reduce((a, b) => a < b ? a : b);
+    double maxLng = allPoints.map((p) => p.longitude).reduce((a, b) => a > b ? a : b);
+
+    final LatLngBounds bounds = LatLngBounds(
+        southwest: LatLng(minLat, minLng),
+        northeast: LatLng(maxLat, maxLng),
+    );
+
     _mapController?.animateCamera(
       CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(
-            _currentRoute
-                .expand((s) => s.path)
-                .map((p) => p.latitude)
-                .reduce((a, b) => a < b ? a : b),
-            _currentRoute
-                .expand((s) => s.path)
-                .map((p) => p.longitude)
-                .reduce((a, b) => a < b ? a : b),
-          ),
-          northeast: LatLng(
-            _currentRoute
-                .expand((s) => s.path)
-                .map((p) => p.latitude)
-                .reduce((a, b) => a > b ? a : b),
-            _currentRoute
-                .expand((s) => s.path)
-                .map((p) => p.longitude)
-                .reduce((a, b) => a > b ? a : b),
-          ),
-        ),
+        bounds,
         100.0,
       ),
     );
   }
 
+  // Define a new function that acts as the entry point for showing the full instructions sheet
+  // This helps when calling it from the step-by-step overlay.
+  void _showFullInstructions() {
+    // When showing the full instructions, we temporarily hide the step overlay
+    // but we don't clear the current step index.
+    setState(() {
+      _showStepOverlay = false;
+    });
+    _showInstructionsSheet();
+  }
 
-void _showInstructionsSheet() async {
-  // ... (LOGIC 1: Check initial favorite status - KEEP THIS UNCHANGED)
-  final userId = getCurrentUserId();
-  
-  if (userId != null && _endPoint != null) {
-    try {
-      final isCurrentlyFavorite = await isFavoriteInBackend(
-        _endPoint!.latitude,
-        _endPoint!.longitude,
-        userId,
-      );
-      
-      setState(() { // This setState correctly updates the parent state before the sheet opens
-        _isFavoriteTo = isCurrentlyFavorite;
-      });
-    } catch (e) {
-      print('Error loading favorite status: $e');
+  void _showInstructionsSheet() async {
+    // ... (LOGIC 1: Check initial favorite status - KEEP THIS UNCHANGED)
+    final userId = getCurrentUserId();
+
+    if (userId != null && _endPoint != null) {
+      try {
+        final isCurrentlyFavorite = await isFavoriteInBackend(
+          _endPoint!.latitude,
+          _endPoint!.longitude,
+          userId,
+        );
+
+        setState(() {
+          // This setState correctly updates the parent state before the sheet opens
+          _isFavoriteTo = isCurrentlyFavorite;
+        });
+      } catch (e) {
+        print('Error loading favorite status: $e');
+        setState(() {
+          _isFavoriteTo = false;
+        });
+      }
+    } else {
       setState(() {
         _isFavoriteTo = false;
       });
     }
-  } else {
-    setState(() {
-      _isFavoriteTo = false;
-    });
-  }
 
-  // --------------------------------------------------------
-  // LOGIC 2: Display the sheet with the fix
-  // --------------------------------------------------------
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: kBackgroundColor,
-    builder: (context) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.2,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (_, scrollController) {
-          return Container(
-            color: kBackgroundColor,
-            child: Column(
-              children: [
-                // ... (Existing Padding for time/distance)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total Time: ${_totalTime.toStringAsFixed(0)} mins',
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Distance: ${_totalDistance.toStringAsFixed(1)} km',
-                        style:
-                            const TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
+    // --------------------------------------------------------
+    // LOGIC 2: Display the sheet with the fix
+    // --------------------------------------------------------
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: kBackgroundColor,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.2,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) {
+            return Container(
+              color: kBackgroundColor,
+              child: Column(
+                children: [
+                  // ... (Existing Padding for time/distance)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Time: ${_totalTime.toStringAsFixed(0)} mins',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Distance: ${_totalDistance.toStringAsFixed(1)} km',
+                          style:
+                              const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: _currentRoute.length,
-                    itemBuilder: (context, index) {
-                      return InstructionTile(segment: _currentRoute[index]);
-                    },
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: _currentRoute.length,
+                      itemBuilder: (context, index) {
+                        return InstructionTile(segment: _currentRoute[index]);
+                      },
+                    ),
                   ),
-                ),
-                // 🛑 CRITICAL FIX: Wrap the button section in a StatefulBuilder
-                StatefulBuilder(
-                  builder: (BuildContext context, StateSetter modalSetState) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 12.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              // ... (Go Now button logic, unchanged)
+                  // 🛑 CRITICAL FIX: Wrap the button section in a StatefulBuilder
+                  StatefulBuilder(
+                    builder: (BuildContext context, StateSetter modalSetState) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 12.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                // ... (Go Now button logic, unchanged)
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kPrimaryColor,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.directions_run),
+                                label: const Text('Go Now'),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  // This setState calls the parent widget's setState, which is correct
+                                  setState(() {
+                                    _showStepOverlay = true;
+                                    _currentStepIndex = 0;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // 🌟 FAVORITE TOGGLE BUTTON LOGIC (MODIFIED setState) 🌟
+                            ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: kPrimaryColor,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
+                                // Now uses the state that is updated by modalSetState
+                                backgroundColor: _isFavoriteTo
+                                    ? Colors.amber
+                                    : Colors.grey.shade300,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14, horizontal: 10),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: const Icon(Icons.directions_run),
-                              label: const Text('Go Now'),
-                              onPressed: () {
-                                Navigator.pop(context);
-                                // This setState calls the parent widget's setState, which is correct
-                                setState(() { 
-                                  _showStepOverlay = true;
-                                  _currentStepIndex = 0;
-                                });
+                              icon: Icon(
+                                  _isFavoriteTo ? Icons.star : Icons.star_border),
+                              label: const Text('Favorite To:'),
+                              onPressed: () async {
+                                final shouldFavorite = !_isFavoriteTo;
+                                final userId = getCurrentUserId();
+
+                                if (userId == null || _endPoint == null) {
+                                  // ... (Error handling, unchanged)
+                                  if (userId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Error: You must be logged in to save favorites.')),
+                                    );
+                                  }
+                                  return;
+                                }
+
+                                try {
+                                  if (shouldFavorite) {
+                                    // --- SAVE LOGIC ---
+                                    final favorite = FavoritePlace(
+                                      id: DateTime.now()
+                                          .millisecondsSinceEpoch
+                                          .toString(),
+                                      name: 'Favorite Place',
+                                      latitude: _endPoint!.latitude,
+                                      longitude: _endPoint!.longitude,
+                                      description: 'Saved from route',
+                                    );
+                                    await saveFavoriteToBackend(favorite, userId);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Added to favorites!')),
+                                    );
+                                  } else {
+                                    // --- DELETE (UN-FAVORITE) LOGIC ---
+                                    await deleteFavoriteFromBackend(
+                                        _endPoint!.latitude,
+                                        _endPoint!.longitude,
+                                        userId);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Removed from favorites!')),
+                                    );
+                                  }
+
+                                  // 🚀 SUCCESS: Update both the parent state AND the modal state
+                                  // This is the crucial line:
+                                  modalSetState(() {
+                                    _isFavoriteTo = shouldFavorite;
+                                  });
+                                  setState(() {}); // Optional: ensures the whole MapScreen state knows
+
+                                } catch (e) {
+                                  // 🛑 FAILURE: If it fails, only update the modal to show the error
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Failed to process favorite: ${e.toString().split(':').last.trim()}'),
+                                    ),
+                                  );
+                                  // State remains as it was, no change to _isFavoriteTo needed
+                                }
                               },
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          // 🌟 FAVORITE TOGGLE BUTTON LOGIC (MODIFIED setState) 🌟
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              // Now uses the state that is updated by modalSetState
-                              backgroundColor: _isFavoriteTo
-                                  ? Colors.amber
-                                  : Colors.grey.shade300,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14, horizontal: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            icon: Icon(
-                                _isFavoriteTo ? Icons.star : Icons.star_border),
-                            label: const Text('Favorite To:'),
-                            onPressed: () async {
-                              final shouldFavorite = !_isFavoriteTo;
-                              final userId = getCurrentUserId();
-
-                              if (userId == null || _endPoint == null) {
-                                // ... (Error handling, unchanged)
-                                if (userId == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Error: You must be logged in to save favorites.')),
-                                  );
-                                }
-                                return;
-                              }
-
-                              try {
-                                if (shouldFavorite) {
-                                  // --- SAVE LOGIC ---
-                                  final favorite = FavoritePlace(
-                                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                    name: 'Favorite Place',
-                                    latitude: _endPoint!.latitude,
-                                    longitude: _endPoint!.longitude,
-                                    description: 'Saved from route',
-                                  );
-                                  await saveFavoriteToBackend(favorite, userId);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Added to favorites!')),
-                                  );
-                                } else {
-                                  // --- DELETE (UN-FAVORITE) LOGIC ---
-                                  await deleteFavoriteFromBackend(
-                                      _endPoint!.latitude,
-                                      _endPoint!.longitude,
-                                      userId);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Removed from favorites!')),
-                                  );
-                                }
-
-                                // 🚀 SUCCESS: Update both the parent state AND the modal state
-                                // This is the crucial line:
-                                modalSetState(() {
-                                  _isFavoriteTo = shouldFavorite;
-                                });
-                                setState(() {}); // Optional: ensures the whole MapScreen state knows
-
-                              } catch (e) {
-                                // 🛑 FAILURE: If it fails, only update the modal to show the error
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Failed to process favorite: ${e.toString().split(':').last.trim()}'),
-                                  ),
-                                );
-                                // State remains as it was, no change to _isFavoriteTo needed
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  }, // End of StatefulBuilder's builder function
-                ), // End of StatefulBuilder
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+                          ],
+                        ),
+                      );
+                    }, // End of StatefulBuilder's builder function
+                  ), // End of StatefulBuilder
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildSelectionHeader() {
     String fromText = _startPoint == null
@@ -630,12 +652,20 @@ void _showInstructionsSheet() async {
   Widget build(BuildContext context) {
     final primaryColor = kPrimaryColor;
 
+    // 🛑 FIX: Use the parameters passed into the widget to create the CameraPosition
+    final CameraPosition initialCameraPosition = CameraPosition(
+      target: LatLng(widget.initialLatitude, widget.initialLongitude),
+      zoom: widget.initialZoom,
+    );
+    // 🛑 FIX END
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: _initialCameraPosition,
+            // Use the locally created initialCameraPosition
+            initialCameraPosition: initialCameraPosition,
             onMapCreated: (controller) => _mapController = controller,
             markers: _markers,
             polylines: _polylines,
@@ -757,36 +787,56 @@ void _showInstructionsSheet() async {
                       InstructionTile(
                           segment: _currentRoute[_currentStepIndex]),
                       const SizedBox(height: 12),
+                      // 👇 MODIFIED ROW WITH NEW BUTTON 👇
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (_currentStepIndex > 0)
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _currentStepIndex--;
-                                });
-                              },
-                              child: const Text('Previous'),
-                            ),
-                          if (_currentStepIndex < _currentRoute.length - 1)
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _currentStepIndex++;
-                                });
-                              },
-                              child: const Text('Next'),
-                            ),
-                          if (_currentStepIndex == _currentRoute.length - 1)
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _showStepOverlay = false;
-                                });
-                              },
-                              child: const Text('Done'),
-                            ),
+                          // 🌟 NEW: View Entire Instructions Button 🌟
+                          OutlinedButton.icon(
+                            onPressed:
+                                _showFullInstructions, // Calls the full sheet function
+                            icon: const Icon(Icons.list),
+                            label: const Text('Full Route'),
+                            style: OutlinedButton.styleFrom(
+                                foregroundColor: kPrimaryColor,
+                                side: BorderSide(color: kPrimaryColor)),
+                          ),
+                          // ----------------------------------------
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (_currentStepIndex > 0)
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _currentStepIndex--;
+                                    });
+                                  },
+                                  child: const Text('Previous'),
+                                ),
+                              const SizedBox(
+                                  width: 8), // Added spacing between prev/next/done
+                              if (_currentStepIndex < _currentRoute.length - 1)
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _currentStepIndex++;
+                                    });
+                                  },
+                                  child: const Text('Next'),
+                                ),
+                              if (_currentStepIndex == _currentRoute.length - 1)
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showStepOverlay = false;
+                                    });
+                                  },
+                                  child: const Text('Done'),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ],
@@ -800,6 +850,7 @@ void _showInstructionsSheet() async {
   }
 
   String getApproximateLocationName(LatLng point) {
+    // This calls the external mock function
     return 'Marker Location (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
   }
 }
