@@ -83,7 +83,7 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
   {'route': 'MAIN GATE - FRIENDSHIP (Sand) Inbound', 'color': const Color(0xFFC2B280), 'nodes': ['N35','N51','N50','N49', 'N48','N03']},
 
   // 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop Route: Single Entry)
-  {'route': 'C\’POINT - BALIBAGO - H\’WAY (Grey) Loop', 'color': const Color(0xFF808080), 'nodes': ['N34', 'N01','N35','N05', 'N06', 'N11', 'N12', 'N14', 'N15', 'N16', 'N33', 'N22', 'N26', 'N23', 'N33', 'N16', 'N15', 'N14', 'N12', 'N11', 'N06', 'N05','N35','N01']},
+  {'route': 'C\’POINT - BALIBAGO - H\’WAY (Grey) Loop', 'color': const Color(0xFF808080), 'nodes': ['N34', 'N01','N35','N05', 'N06', 'N11', 'N12', 'N14', 'N15', 'N16', 'N33', 'N22', 'N26', 'N23', 'N33', 'N16', 'N15', 'N14', 'N12', 'N11', 'N06', 'N05','N35','N01','N34']},
 
   // 3. SM CITY - MAIN GATE – DAU (Various) (Simple Route: Outbound/Inbound)
   {'route': 'SM CITY - MAIN GATE – DAU (Various) Outbound', 'color': const Color.fromARGB(255, 63, 63, 63), 'nodes': ['N34', 'N01','N05','N02']},
@@ -106,17 +106,17 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
 
 // 8. PANDANG - PAMPANG (Blue)
   {'route': 'PANDANG - PAMPANG (Blue) Outbound', 'color': Colors.blue, 'nodes': ['N07', 'N08','N18','N19','N33','N22','N23','N24','N29','N25','N19','N18','N08']},
-  {'route': 'PANDANG - PAMPANG (Blue) Inbound', 'color': Colors.blue, 'nodes': ['N07', 'N08']},
+  {'route': 'PANDANG - PAMPANG (Blue) Inbound', 'color': Colors.blue, 'nodes': ['N08', 'N18', 'N19', 'N25', 'N29', 'N24', 'N23', 'N22', 'N33', 'N19', 'N18', 'N08', 'N07']},
 
 // 9. SUNSET - NEPO (Orange)
-  {'route': 'SUNSET - NEPO (Orange) Loop', 'color': Colors.deepOrange, 'nodes': ['N27', 'N40','N26','N22','N23','N26','N40']},
+  {'route': 'SUNSET - NEPO (Orange) Loop', 'color': Colors.deepOrange, 'nodes': ['N27', 'N40','N26','N22','N23','N26','N40','N27']},
 
 // 10. VILLA - PAMPANG SM TELEBESTAGEN (Yellow)
   {'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Outbound', 'color': Colors.yellow, 'nodes': ['N15', 'N16','N19','N24','N29','N30','N31','N32','N28']},
   {'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Inbound', 'color': Colors.yellow, 'nodes': ['N28', 'N32', 'N31', 'N30', 'N29', 'N24', 'N19', 'N16', 'N15']},
 
 // 11. CAPAYA - ANGELES (Pink) - CONVERTED TO A LOOP
-  {'route': 'CAPAYA - ANGELES (Pink) Loop', 'color': Colors.pink, 'nodes': ['N10', 'N09', 'N08', 'N18', 'N19','N44','N20','N33','N22','N23','N24','N29','N44','N19', 'N18', 'N08', 'N09']},
+  {'route': 'CAPAYA - ANGELES (Pink) Loop', 'color': Colors.pink, 'nodes': ['N10', 'N09', 'N08', 'N18', 'N19','N44','N20','N33','N22','N23','N24','N29','N44','N19', 'N18', 'N08', 'N09','N10']},
 ];
 
 

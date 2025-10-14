@@ -352,154 +352,205 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  void _showInstructionsSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: kBackgroundColor,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          minChildSize: 0.2,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) {
-            return Container(
-              color: kBackgroundColor,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Total Time: ${_totalTime.toStringAsFixed(0)} mins',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Distance: ${_totalDistance.toStringAsFixed(1)} km',
-                          style:
-                              const TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ],
-                    ),
+
+void _showInstructionsSheet() async {
+  // ... (LOGIC 1: Check initial favorite status - KEEP THIS UNCHANGED)
+  final userId = getCurrentUserId();
+  
+  if (userId != null && _endPoint != null) {
+    try {
+      final isCurrentlyFavorite = await isFavoriteInBackend(
+        _endPoint!.latitude,
+        _endPoint!.longitude,
+        userId,
+      );
+      
+      setState(() { // This setState correctly updates the parent state before the sheet opens
+        _isFavoriteTo = isCurrentlyFavorite;
+      });
+    } catch (e) {
+      print('Error loading favorite status: $e');
+      setState(() {
+        _isFavoriteTo = false;
+      });
+    }
+  } else {
+    setState(() {
+      _isFavoriteTo = false;
+    });
+  }
+
+  // --------------------------------------------------------
+  // LOGIC 2: Display the sheet with the fix
+  // --------------------------------------------------------
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: kBackgroundColor,
+    builder: (context) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.2,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) {
+          return Container(
+            color: kBackgroundColor,
+            child: Column(
+              children: [
+                // ... (Existing Padding for time/distance)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total Time: ${_totalTime.toStringAsFixed(0)} mins',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Distance: ${_totalDistance.toStringAsFixed(1)} km',
+                        style:
+                            const TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: _currentRoute.length,
-                      itemBuilder: (context, index) {
-                        return InstructionTile(segment: _currentRoute[index]);
-                      },
-                    ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: _currentRoute.length,
+                    itemBuilder: (context, index) {
+                      return InstructionTile(segment: _currentRoute[index]);
+                    },
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 12.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
+                ),
+                // 🛑 CRITICAL FIX: Wrap the button section in a StatefulBuilder
+                StatefulBuilder(
+                  builder: (BuildContext context, StateSetter modalSetState) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 12.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              // ... (Go Now button logic, unchanged)
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kPrimaryColor,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.directions_run),
+                              label: const Text('Go Now'),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                // This setState calls the parent widget's setState, which is correct
+                                setState(() { 
+                                  _showStepOverlay = true;
+                                  _currentStepIndex = 0;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // 🌟 FAVORITE TOGGLE BUTTON LOGIC (MODIFIED setState) 🌟
+                          ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: kPrimaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              // Now uses the state that is updated by modalSetState
+                              backgroundColor: _isFavoriteTo
+                                  ? Colors.amber
+                                  : Colors.grey.shade300,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            icon: const Icon(Icons.directions_run),
-                            label: const Text('Go Now'),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              setState(() {
-                                _showStepOverlay = true;
-                                _currentStepIndex = 0;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isFavoriteTo
-                                ? Colors.amber
-                                : Colors.grey.shade300,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 14, horizontal: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: Icon(
-                              _isFavoriteTo ? Icons.star : Icons.star_border),
-                          label: const Text('Favorite To:'),
-                          onPressed: () async {
-                            setState(() {
-                              _isFavoriteTo = !_isFavoriteTo;
-                            });
-                            if (_isFavoriteTo && _endPoint != null) {
-                              // 🛑 FIX 1: Get User ID 
+                            icon: Icon(
+                                _isFavoriteTo ? Icons.star : Icons.star_border),
+                            label: const Text('Favorite To:'),
+                            onPressed: () async {
+                              final shouldFavorite = !_isFavoriteTo;
                               final userId = getCurrentUserId();
-                              
-                              if (userId == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Error: You must be logged in to save favorites.')),
-                                );
-                                // Revert the favorite state
-                                setState(() {
-                                  _isFavoriteTo = false;
-                                });
-                                return; 
+
+                              if (userId == null || _endPoint == null) {
+                                // ... (Error handling, unchanged)
+                                if (userId == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Error: You must be logged in to save favorites.')),
+                                  );
+                                }
+                                return;
                               }
-                              
-                              final favorite = FavoritePlace(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                name: 'Favorite Place',
-                                latitude: _endPoint!.latitude,
-                                longitude: _endPoint!.longitude,
-                                description: 'Saved from route',
-                              );
-                              
-                              // 🛑 FIX 2: Use try-catch to handle Supabase errors
+
                               try {
-                                await saveFavoriteToBackend(favorite, userId);
-                                
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Added to favorites!')),
-                                );
+                                if (shouldFavorite) {
+                                  // --- SAVE LOGIC ---
+                                  final favorite = FavoritePlace(
+                                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                    name: 'Favorite Place',
+                                    latitude: _endPoint!.latitude,
+                                    longitude: _endPoint!.longitude,
+                                    description: 'Saved from route',
+                                  );
+                                  await saveFavoriteToBackend(favorite, userId);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Added to favorites!')),
+                                  );
+                                } else {
+                                  // --- DELETE (UN-FAVORITE) LOGIC ---
+                                  await deleteFavoriteFromBackend(
+                                      _endPoint!.latitude,
+                                      _endPoint!.longitude,
+                                      userId);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Removed from favorites!')),
+                                  );
+                                }
+
+                                // 🚀 SUCCESS: Update both the parent state AND the modal state
+                                // This is the crucial line:
+                                modalSetState(() {
+                                  _isFavoriteTo = shouldFavorite;
+                                });
+                                setState(() {}); // Optional: ensures the whole MapScreen state knows
+
                               } catch (e) {
-                                // This catches exceptions thrown by the fixed saveFavoriteToBackend
+                                // 🛑 FAILURE: If it fails, only update the modal to show the error
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to save favorite: ${e.toString().split(':').last.trim()}'),
+                                    content: Text(
+                                        'Failed to process favorite: ${e.toString().split(':').last.trim()}'),
                                   ),
                                 );
-                                // Revert the favorite state since the save failed
-                                setState(() {
-                                  _isFavoriteTo = false;
-                                });
+                                // State remains as it was, no change to _isFavoriteTo needed
                               }
-                            }
-                          }
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }, // End of StatefulBuilder's builder function
+                ), // End of StatefulBuilder
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 
   Widget _buildSelectionHeader() {
     String fromText = _startPoint == null
@@ -600,7 +651,7 @@ class _MapScreenState extends State<MapScreen> {
             mapToolbarEnabled: false,
           ),
 
-          if (_isSelectingPoints)
+          if (_startPoint != null || _endPoint != null || _isSelectingPoints)
             Positioned(
               top: 0,
               left: 0,
