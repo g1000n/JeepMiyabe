@@ -7,9 +7,11 @@ import 'screens/splash_page.dart';
 import 'screens/welcome_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/login_page.dart';
+import 'screens/verify_page.dart';
 import 'screens/mfa_page.dart';
 import 'screens/map_screen.dart'; // Your MapScreen
 import 'screens/dashboard_page.dart'; // Team's Dashboard Page
+
 
 // Initialize Supabase before running the app
 Future<void> main() async {
@@ -30,12 +32,35 @@ Future<void> main() async {
 }
 
 // Using the new app class name from the 'main' branch
-class JeepMiyabeApp extends StatelessWidget {
+//Stateful Widget to handle auth state changes for automatic redirection after sign up verification
+class JeepMiyabeApp extends StatefulWidget {
   const JeepMiyabeApp({super.key});
+
+  @override
+  State<JeepMiyabeApp> createState() => _JeepMiyabeAppState();
+}
+
+class _JeepMiyabeAppState extends State<JeepMiyabeApp> {
+  late final supabase = Supabase.instance.client;
+
+  @override
+  void initState(){
+    super.initState();
+
+    supabase.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn && session != null && mounted) {
+        //If user just verified via email, go to dashboard
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'JeepMiyabe Route Finder',
       theme: ThemeData(
         // Keeping the existing theme setup
@@ -70,6 +95,9 @@ class JeepMiyabeApp extends StatelessWidget {
           }
           return MFAPage(email: args);
         },
+
+        //Verification page after signup
+        '/verify': (context) => const VerifyPage(),
       },
     );
   }
