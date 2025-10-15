@@ -8,6 +8,92 @@ import 'map_screen.dart'; // Import your MapScreen
 const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
 const Color kBackgroundColor = Color(0xFFFDF8E2);
 const Color kCardColor = Color(0xFFFC775C); // A lighter orange for the background of the sheet/cards
+const Color kHeaderColor = Color(0xFFE4572E); // Color used for the 'ABOUT JEEP...' text in the image
+
+// ---------------------------------------------------------------------------
+// 🛑 NEW WIDGET: ABOUT US PAGE
+// Created to match the provided image for the 'About Us' tab.
+// ---------------------------------------------------------------------------
+class AboutUsPage extends StatelessWidget {
+  const AboutUsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: kBackgroundColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 1. Top Section (Back Arrow and Jeepney Image)
+          // The back arrow on the 'About Us' tab typically navigates back from a detail view.
+          // Since the whole AboutUsPage is a tab content, the arrow is removed
+          // as it doesn't fit the tab structure, but the spacing is kept.
+          Padding(
+            padding: const EdgeInsets.only(top: 10.0, left: 10.0, right: 10.0, bottom: 20.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Back arrow is removed as this is a primary tab destination
+                // but can be added back if this page is a standalone route.
+              ],
+            ),
+          ),
+          
+          // 2. Jeepney Image
+          // Placeholder for the colorful jeepney image from the prompt.
+          Image.asset(
+            'assets/jeepney.png', // **Ensure this path points to the colorful image in your assets**
+            width: 200,
+            height: 150,
+            fit: BoxFit.contain,
+          ),
+          
+          const SizedBox(height: 20),
+
+          // 3. ABOUT JEEP... Header Text
+          Text(
+            'ABOUT',
+            style: TextStyle(
+              color: kHeaderColor,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            'JEEPMIYABE',
+            style: TextStyle(
+              color: kHeaderColor,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+              height: 1.0, // Tighter line height
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 30),
+
+          // 4. Description Text
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40.0),
+            child: Text(
+              'JeepMiyabe is a mobile application designed to make commuting around Angeles City, Pampanga more convenient and reliable. The app provides a smart jeepney route system that helps locals, students, and visitors find the best possible routes to reach their destinations. Users can search for jeepney routes and view important details such as fares, jeepney colors, and their starting and ending points. JeepMiyabe also allows users to save favorite places for quick access, check their ride history, and enable push notifications for updates and reminders.',
+              style: TextStyle(
+                color: Colors.black87,
+                fontSize: 16,
+                height: 1.6,
+              ),
+              textAlign: TextAlign.justify,
+            ),
+          ),
+          // Note: The BottomAppBar is part of the parent Scaffold, so no need to add it here.
+        ],
+      ),
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // 🛑 NEW WIDGET: JEEP INFO MODAL SHEET CONTENT
@@ -300,9 +386,10 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
   double get _fabElevation => _isJeepListSheetOpen ? 0.0 : 4.0;
   double get _appBarElevation => _isJeepListSheetOpen ? 0.0 : 8.0;
 
+  // 🛑 UPDATE: Replaced placeholder for index 1 with the new AboutUsPage()
   final List<Widget> _pages = [
     const MapScreen(), // Index 0: Home view (MapScreen)
-    const Center(child: Text('About Us Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 1
+    const AboutUsPage(), // Index 1: The new About Us content
     const SizedBox.shrink(), // Placeholder for FAB (Index 2)
     const Center(child: Text('Favorites Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 3
     const ProfilePage(), // Index 4: ProfilePage
@@ -350,8 +437,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
         // Max height constraint to leave space for the BottomAppBar (65)
         constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height - 
-                       MediaQuery.of(context).padding.top - 
-                       65 
+                        MediaQuery.of(context).padding.top - 
+                        65 
         ),
       );
 
@@ -446,6 +533,16 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
     if (index == 2) return;
     setState(() => _selectedIndex = index);
     _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    
+    // Close the bottom sheet if another tab is selected
+    if (_isJeepListSheetOpen) {
+      _animationController.reverse();
+      _bottomSheetController?.close();
+      setState(() {
+        _isJeepListSheetOpen = false;
+        _bottomSheetController = null;
+      });
+    }
   }
 
   Widget _buildNavItem({required int index, required IconData icon, required String label}) {
