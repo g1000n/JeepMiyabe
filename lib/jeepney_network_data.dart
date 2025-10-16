@@ -110,7 +110,7 @@ Map<String, Node> _defineAllNodes() {
         name: '248-102 Rizal Street Ext'),
     'N23': Node(
         id: 'N23',
-        position: const LatLng(15.136375922908924, 120.58773799302463),
+        position: const LatLng(15.136078628012532, 120.5883267552127),
         name: '304 Santo Rosario St, Angeles, Pampanga'),
     'N24': Node(
         id: 'N24',
@@ -198,7 +198,7 @@ Map<String, Node> _defineAllNodes() {
         name: '7-eleven Ninoy Aquino (Marisol)'),
     'N43': Node(
         id: 'N43',
-        position: const LatLng(15.135748021656429, 120.58702364198633),
+        position: const LatLng(15.135573995928794, 120.58730678010825),
         name: 'Nepo Mart'),
     'N44': Node(
         id: 'N44',
@@ -332,6 +332,155 @@ Map<String, Node> _defineAllNodes() {
         id: 'N79',
         position: const LatLng(15.164848075983, 120.58323030142397),
         name: 'Narciso Street 2'),
+    'N80': Node(
+      id: 'N80',
+      position: const LatLng(15.160098314474805, 120.60822613648322),
+      name: 'Pandan Road 2',
+    ),
+    'N81': Node(
+      id: 'N81',
+      position: const LatLng(15.160709285735642, 120.60932047775378),
+      name: 'Pandan Road 1',
+    ),
+    'N82': Node(
+      id: 'N82',
+      position: const LatLng(15.132805286561142, 120.56995474109118),
+      name: 'Grumpy Joes',
+    ),
+    'N83': Node(
+        id: 'N83',
+        position: const LatLng(15.132857758003556, 120.58630260372267),
+        name: 'Villa Teressa Gate'),
+    'N84': Node(
+        id: 'N84',
+        position: const LatLng(15.135260646309115, 120.58784167758687),
+        name: 'Nepo Mall'),
+    'N85': Node(
+        id: 'N85',
+        position: const LatLng(15.136306143152643, 120.58606339835927),
+        name: '293 Rizal Street Ext'),
+    'N86': Node(
+        id: 'N86',
+        position: const LatLng(15.133027, 120.581585),
+        name: 'NEPLUM Inc.'),
+    'N87': Node(
+        id: 'N87',
+        position: const LatLng(15.131166647682385, 120.57691751235289),
+        name: '7-Eleven 5350 Holy Family Village'),
+    'N88': Node(
+      id: 'N88',
+      position: const LatLng(15.151449, 120.588355),
+      name: 'Holy Family Village Entrance',
+    ),
+    'N89': Node(
+        id: 'N89',
+        position: const LatLng(15.136385932385183, 120.5877362515324),
+        name: 'Sto Rosario st, Cor Plaridel Street'),
+    'N90': Node(
+      id: 'N90',
+      position: const LatLng(15.137220514003628, 120.5882569508195),
+      name: '2021 Plaridel Street',
+    ),
+    'N91': Node(
+      id: 'N91',
+      position: const LatLng(15.149525165682881, 120.58331197311372),
+      name: 'Jollibee Pampang',
+    ),
+    'N92': Node(
+      id: 'N92',
+      position: const LatLng(15.149340451935991, 120.5783740312681),
+      name: 'City College of Angeles/Angeles City National High School',
+    ),
+    'N93': Node(
+      id: 'N93',
+      position: const LatLng(15.148202175873555, 120.57434314275908),
+      name: 'Pampang Barangay Hall',
+    ),
+    'N94': Node(
+      id:'N94',
+      position: const LatLng(15.145087133917675, 120.5645758183711),
+      name: 'Timog Park Subd Gate 1'
+    ),
+    'N95': Node(
+      id: 'N95',
+      position: const LatLng(15.150625116166582, 120.55940322312249),
+      name: 'Friendship Plaza',
+    ),
+    'N96': Node(
+      id: 'N96',
+      position: const LatLng(15.152375049439994, 120.55945199266341),
+      name: 'Starbucks Friendship Highway Angeles City',
+    ),
+    'N97': Node(
+      id: 'N97',
+      position: const LatLng(15.15399517783768, 120.56032463933668),
+      name: 'Shabu khan',
+    ),
+    'N98': Node(
+      id: 'N98',
+      position: const LatLng(15.15511899700585, 120.56028528242953),
+      name: 'Papang\'s Crispy Pata',
+    ),
+    'N99': Node(
+      id: 'N99',
+      position: const LatLng(15.158073816058145, 120.55969767237336),
+      name: 'Fil-Am Friendship Hwy Bridge',
+    ),
+    'N100': Node(
+      id: 'N100',
+      position: const LatLng(15.15918156717312, 120.55688757597602),
+      name: 'Boom Chicken',
+    ),
+    'N101': Node(
+      id: 'N101',
+      position: const LatLng(15.162524005697943, 120.55326259377615),
+      name: 'Family KTV',
+    ),
+    'N102': Node(
+      id: 'N102',
+      position: const LatLng(15.162522622073261, 120.55177541806499),
+      name: 'Korean Furniture Factory Showroom',
+    ),
+    'N103': Node(
+      id: 'N103',
+      position: const LatLng(15.160521149752318, 120.55118214642378),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N104': Node(
+      id: 'N104',
+      position: const LatLng(15.161673408313732, 120.54829308824665),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N105': Node(
+      id: 'N105',
+      position: const LatLng(15.164408767372109, 120.54755346452164),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N106': Node(
+      id: 'N106',
+      position: const LatLng(15.171108942340991, 120.5384758325827),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N107': Node(
+      id: 'N107',
+      position: const LatLng(15.170275806728705, 120.52783824781157),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N108': Node( // Renamed the next entries to N108 and N109 to continue sequential numbering
+      id: 'N108',
+      position: const LatLng(15.172601476676132, 120.52186767026078),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N109': Node(
+      id: 'N109',
+      position: const LatLng(15.172197272208226, 120.517081585048),
+      name: 'Jose P Laurel Ave',
+    ),
+    'N110': Node(
+      id: 'N110',
+      position: const LatLng(15.17169723144669, 120.51692362796035),
+      name: 'Sapang Bato Bridge',
+    ),
   };
 }
 
@@ -377,35 +526,47 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     ]
   },
 
-  // 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop Route: Single Entry)
+// 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop Route: Single Entry)
   {
-    'route': 'C\’POINT - BALIBAGO - H\’WAY (Grey) Loop',
+    'route': 'C’POINT - BALIBAGO - H’WAY (Grey) Loop',
     'color': const Color(0xFF808080),
     'nodes': [
       'N34',
       'N01',
-      'N35',
-      'N05',
+      'N05', // N35 removed from this section of the loop
       'N06',
       'N11',
       'N12',
+      'N88', // NEW Node
       'N14',
       'N15',
+      'N65',
+      'N64',
       'N16',
+      'N71',
       'N33',
       'N22',
+      'N85', // Defined in previous step
       'N26',
-      'N23',
-      'N33',
+      'N83', // Defined in previous step
+      'N84', // Defined in previous step
+      'N43',
+      'N89', // NEW Node
+      'N90',
+      'N20',
+      'N33', // Second Pass
+      'N71',
       'N16',
+      'N64',
+      'N65',
       'N15',
       'N14',
+      'N88', // Return Loop Node
       'N12',
       'N11',
       'N06',
       'N05',
-      'N35',
-      'N01'
+      'N01' // Last node in the list. Loop logic connects N01 to N34.
     ]
   },
 
@@ -426,9 +587,8 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     'route': 'CHECKPOINT - HENSONVILLE - HOLY (White) Loop',
     'color': Colors.white,
     'nodes': [
-      'N35',
-      'N79'
-          'N76',
+      'N35', // START
+      'N76',
       'N39',
       'N38',
       'N77',
@@ -442,6 +602,7 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N71',
       'N33',
       'N22',
+      'N89', // Requires N89 definition
       'N23',
       'N24',
       'N29',
@@ -461,29 +622,80 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N77',
       'N38',
       'N39',
-      'N76',
-      'N79',
-      'N35'
+      'N76' // END (Loop logic connects N76 back to N35)
     ]
   },
 
 // 5. SAPANG BATO – ANGLES (Maroon) (Simple Route: Outbound/Inbound)
-  {
-    'route': 'SAPANG BATO – ANGLES (Maroon) Outbound',
-    'color': const Color(0xFF800000),
-    'nodes': ['N15', 'N14', 'N41', 'N03', 'N04']
-  },
-  {
-    'route': 'SAPANG BATO – ANGLES (Maroon) Inbound',
-    'color': const Color(0xFF800000),
-    'nodes': ['N04', 'N03', 'N41', 'N14', 'N15']
-  },
+{
+  'route': 'SAPANG BATO – ANGELES (Maroon) Outbound',
+  'color': const Color(0xFF800000), 
+  'nodes': [
+    'N04', 
+    'N110',
+    'N109',
+    'N108',
+    'N107',
+    'N106',
+    'N105',
+    'N104',
+    'N103',
+    'N102',
+    'N101',
+    'N03',
+    'N100',
+    'N99',
+    'N98',
+    'N97',
+    'N96',
+    'N95',
+    'N41',
+    'N94',
+    'N93',
+    'N92',
+    'N91',
+    'N14',
+    'N15', 
+  ],
+},
+{
+  'route': 'SAPANG BATO – ANGELES (Maroon) Inbound',
+  'color': const Color(0xFF800000),
+  'nodes': [
+    'N15',
+    'N14',
+    'N91',
+    'N92',
+    'N93',
+    'N94',
+    'N41',
+    'N95',
+    'N96',
+    'N97',
+    'N98',
+    'N99',
+    'N100',
+    'N03',
+    'N101',
+    'N102',
+    'N103',
+    'N104',
+    'N105',
+    'N106',
+    'N107',
+    'N108',
+    'N109',
+    'N110',
+    'N04',
+  ],
+},
 
-// 6. CHECKPOINT - HOLY - HIGHWAY (Lavander) (Loop Route: Single Entry) - UPDATED
+  // 6. CHECKPOINT - HOLY - HIGHWAY (Lavander) (Loop Route: Single Entry) - UPDATED
   {
     'route': 'CHECKPOINT - HOLY - HIGHWAY (Lavander) Loop',
     'color': Colors.indigo,
     'nodes': [
+      'N34',
       'N01',
       'N05',
       'N06',
@@ -497,6 +709,10 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N71',
       'N33',
       'N22',
+      'N85', // 293 Rizal Street Ext
+      'N26', // Rizal Street Ext
+      'N83', // Villa Teressa Gate
+      'N84', // Nepo Mall
       'N23',
       'N24',
       'N29',
@@ -511,8 +727,9 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N12',
       'N11',
       'N06',
-      'N05'
-    ]
+      'N05',
+      'N01' // Last node in the sequence
+    ] // The Loop logic will connect N01 back to N34
   },
 
 // 7. MARISOL - PAMPANG (Green)
@@ -527,6 +744,7 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N71',
       'N33',
       'N22',
+      'N89',
       'N23',
       'N24',
       'N29',
@@ -555,6 +773,7 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N29',
       'N24',
       'N23',
+      'N89',
       'N22',
       'N33',
       'N71',
@@ -564,37 +783,63 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N15'
     ]
   },
-// 8. PANDANG - PAMPANG (Blue)
   {
-    'route': 'PANDANG - PAMPANG (Blue) Outbound',
-    'color': Colors.blue,
+    'route': 'PANDANG - PAMPANG (Blue) Loop', // Route name shown on map or list
+    'color': Colors.blue, // Display color for this route
     'nodes': [
+      // Ordered list of waypoints or stops
       'N07',
+      "N81",
+      'N80',
       'N08',
+      'N67',
       'N18',
       'N19',
+      'N72',
+      'N44',
+      'N20',
       'N33',
       'N22',
+      'N89',
       'N23',
       'N24',
       'N29',
+      'N68',
+      'N69',
       'N25',
+      'N72',
       'N19',
       'N18',
-      'N08'
+      'N67',
+      'N08',
+      'N80', // <- Must exist in _defineAllNodes() with coordinates
+      'N81', // <- Must exist in _defineAllNodes() with coordinates
+      'N07' // Completes the loop (route returns to starting point)
     ]
-  },
-  {
-    'route': 'PANDANG - PAMPANG (Blue) Inbound',
-    'color': Colors.blue,
-    'nodes': ['N07', 'N08']
   },
 
 // 9. SUNSET - NEPO (Orange)
   {
     'route': 'SUNSET - NEPO (Orange) Loop',
     'color': Colors.deepOrange,
-    'nodes': ['N27', 'N40', 'N26', 'N22', 'N23', 'N26', 'N40']
+    'nodes': [
+      'N27',
+      'N82',
+      'N40',
+      'N87',
+      'N86',
+      'N26',
+      'N83',
+      'N84',
+      'N43',
+      'N85',
+      'N26',
+      'N86',
+      'N87',
+      'N40',
+      'N82',
+      'N27'
+    ]
   },
 
 // 10. VILLA - PAMPANG SM TELEBESTAGEN (Yellow)
@@ -630,8 +875,10 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
       'N30',
       'N59',
       'N60',
-      'N29',
-      'N24',
+      'N68',
+      'N69',
+      'N25',
+      'N72',
       'N19',
       'N61',
       'N62',
@@ -644,29 +891,42 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
   },
 
 // 11. CAPAYA - ANGELES (Pink) - CONVERTED TO A LOOP
-  {
-    'route': 'CAPAYA - ANGELES (Pink) Loop',
-    'color': Colors.pink,
-    'nodes': [
-      'N10',
-      'N09',
-      'N08',
-      'N18',
-      'N19',
-      'N44',
-      'N20',
-      'N33',
-      'N22',
-      'N23',
-      'N24',
-      'N29',
-      'N44',
-      'N19',
-      'N18',
-      'N08',
-      'N09'
-    ]
-  },
+{
+  'route': 'CAPAYA - ANGELES (Pink) Loop',
+  'color': Colors.pink,
+  'nodes': [
+    'N10', // START
+    'N09',
+    'N70',
+    'N66',
+    'N08',
+    'N67',
+    'N18',
+    'N19',
+    'N72',
+    'N44',
+    'N20',
+    'N33',
+    'N22',
+    'N89', // Requires N89 definition
+    'N23',
+    'N24',
+    'N29',
+    'N68',
+    'N69',
+    'N25',
+    'N72', // Loopback segment starts here
+    'N19',
+    'N18',
+    'N67',
+    'N08',
+    'N66',
+    'N70',
+    'N09',
+    'N10' // END (Loop logic connects N10 back to N10)
+  ]
+},
+
 ];
 
 /// Extracts the simple color/route name from the detailed route string.
