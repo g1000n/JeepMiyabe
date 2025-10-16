@@ -466,14 +466,7 @@ class _DashboardPageState extends State<DashboardPage>
   double get _appBarElevation => _isJeepListSheetOpen ? 0.0 : 8.0;
 
   // 🛑 UPDATE: Replaced placeholder for index 1 with the new AboutUsPage()
-  final List<Widget> _pages = [
-    const MapScreen(), // Index 0: Home view (MapScreen)
-    const AboutUsPage(), // Index 1: The new About Us content
-    const SizedBox.shrink(), // Placeholder for FAB (Index 2)
-    const FavoritesPage(),
-    const ProfilePage(), // Index 4: ProfilePage
-  ];
-
+  
   @override
   void initState() {
     super.initState();
@@ -487,9 +480,9 @@ class _DashboardPageState extends State<DashboardPage>
 
     _pages = [
       const MapScreen(), // Index 0: Home view (MapScreen)
-      const Center(child: Text('About Us Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 1
+      const AboutUsPage(),
       const SizedBox.shrink(), // Placeholder for FAB (Index 2)
-      const Center(child: Text('Favorites Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 3
+      const FavoritesPage(),
       ProfilePage(onLogout: () => _logout(context)), // Index 4: ProfilePage
     ];
   }
