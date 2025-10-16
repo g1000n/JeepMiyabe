@@ -1,154 +1,160 @@
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+// lib/favorite_place.dart
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart'; // REQUIRED for generating a unique 'id'
+import 'package:flutter/foundation.dart'; // For debugPrint
 
-final supabase = Supabase.instance.client;
+// Initialize Supabase client
+final SupabaseClient supabase = Supabase.instance.client;
 
 // ---------------------------------------------------------------------------
-// Model: FavoritePlace
+// FAVORITE PLACE MODEL
 // ---------------------------------------------------------------------------
+
 class FavoritePlace {
+  // id corresponds to the UUID primary key in the 'favorites' table
   final String id;
   final String name;
   final double latitude;
   final double longitude;
   final String? description;
+  final DateTime createdAt;
 
   FavoritePlace({
-    required this.id,
+    required this.id, // This is the corrected named parameter
     required this.name,
     required this.latitude,
     required this.longitude,
     this.description,
-  });
+    // Provide a default for createdAt if not passed
+    DateTime? createdAt,
+  }) : this.createdAt = createdAt ?? DateTime.now();
 
-  LatLng get position => LatLng(latitude, longitude);
-
-  // Serialization for backend/local storage (converting model to JSON for API call)
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'latitude': latitude,
-    'longitude': longitude,
-    'description': description,
-  };
-
-  // Deserialization from JSON (creating model from API response)
-  factory FavoritePlace.fromJson(Map<String, dynamic> json) => FavoritePlace(
-    id: json['id'].toString(), // Ensure ID is always a string
-    name: json['name'] as String,
-    latitude: (json['latitude'] as num).toDouble(),
-    longitude: (json['longitude'] as num).toDouble(),
-    description: json['description'] as String?,
-  );
+  // Factory method to create a FavoritePlace from a Supabase row (Map)
+  factory FavoritePlace.fromMap(Map<String, dynamic> data) {
+    return FavoritePlace(
+      // The database column names are used here:
+      id: data['id'] as String,
+      name: data['name'] as String,
+      latitude: (data['latitude'] as num).toDouble(),
+      longitude: (data['longitude'] as num).toDouble(),
+      description: data['description'] as String?,
+      createdAt: DateTime.parse(data['created_at'] as String).toLocal(),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Supabase Functions for Favorites
+// SUPABASE SERVICE FUNCTIONS (Used by favorites_page.dart & map_screen.dart)
 // ---------------------------------------------------------------------------
 
-/// Saves a new favorite place to the Supabase 'favorites' table.
-Future<void> saveFavoriteToBackend(FavoritePlace favorite, String userId) async {
-  try {
-    await supabase.from('favorites').insert({
-      'user_id': userId,
-      'name': favorite.name,
-      'latitude': favorite.latitude,
-      'longitude': favorite.longitude,
-      'description': favorite.description,
-      // 'created_at' and 'id' should be handled by Supabase database defaults
-    });
-  } on PostgrestException catch (e) {
-    throw Exception('Supabase Database Error (Save): ${e.message}');
-  } catch (e) {
-    throw Exception('Failed to save favorite due to an unexpected error: $e');
-  }
-}
-
-/// Deletes a favorite place from Supabase by matching coordinates and user ID.
-Future<void> deleteFavoriteFromBackend(
-    double latitude, double longitude, String userId) async {
-  if (userId.isEmpty) {
-    throw Exception('User is not authenticated.');
-  }
-
-  try {
-    // Attempt the delete operation, matching by user_id and coordinates.
-    final result = await supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', userId)
-        .eq('latitude', latitude)
-        .eq('longitude', longitude)
-        .select();
-
-    if (result.isEmpty) {
-      print('Warning: Attempted to delete a non-existent favorite for user $userId.');
-    } else {
-      print('Successfully deleted ${result.length} favorite place(s).');
-    }
-  } on PostgrestException catch (e) {
-    throw Exception('Supabase Database Error (Delete): ${e.message}');
-  } catch (e) {
-    throw Exception('Failed to delete favorite due to an unexpected error: $e');
-  }
-}
-
-/// Fetches all saved favorite places for a specific user ID.
+/// Fetches all favorite places for a given user ID.
 Future<List<FavoritePlace>> fetchFavoritesForUser(String userId) async {
   if (userId.isEmpty) {
     return [];
   }
 
   try {
-    // 1. Query the 'favorites' table for records matching the user_id
-    final response = await supabase
-        .from('favorites')
+    final List<Map<String, dynamic>> response = await supabase
+        .from('favorites') // Assuming the table name is 'favorites'
         .select()
         .eq('user_id', userId)
-        .order('id', ascending: false); // Optional: order by ID or creation date
+        .order('created_at', ascending: false);
 
-    // 2. Map the list of JSON objects (List<Map<String, dynamic>>) to a list of FavoritePlace objects
-    final favorites = (response as List).map((json) {
-      return FavoritePlace.fromJson({
-        ...json,
-        // The factory constructor handles converting the database ID to a String
-      });
-    }).toList();
-
-    return favorites;
+    return response.map(FavoritePlace.fromMap).toList();
   } on PostgrestException catch (e) {
-    print('Supabase fetch favorites error: ${e.message}');
-    throw Exception('Failed to load favorites: ${e.message}'); // Throw exception to be caught by FutureBuilder
+    debugPrint('Supabase Fetch Error: ${e.message}');
+    throw Exception('Failed to load favorites from database.');
   } catch (e) {
-    print('Unexpected error fetching favorites: $e');
-    throw Exception('An unexpected error occurred: $e');
+    debugPrint('General Fetch Error: $e');
+    rethrow;
   }
 }
 
-/// Checks if a place is favorited by the user based on coordinates.
-Future<bool> isFavoriteInBackend(
-    double latitude, double longitude, String userId) async {
-  if (userId.isEmpty) {
-    return false;
+/// Checks if a location (by coordinates) is already favorited by the user.
+Future<bool> isFavoriteInBackend(double lat, double lon, String userId) async {
+  // Use the helper function to check existence
+  final id = await fetchFavoriteIdByCoordinates(lat, lon, userId);
+  return id != null;
+}
+
+/// Saves a FavoritePlace object to the backend.
+Future<void> saveFavoriteToBackend(
+    FavoritePlace favorite, String userId) async {
+  try {
+    final Map<String, dynamic> data = {
+      // NOTE: Supabase can auto-generate the ID, but since you are passing
+      // the UUID from the app, include it here:
+      'id': favorite.id,
+      'user_id': userId,
+      'name': favorite.name,
+      'latitude': favorite.latitude,
+      'longitude': favorite.longitude,
+      'description': favorite.description,
+    };
+    await supabase.from('favorites').insert(data);
+  } on PostgrestException catch (e) {
+    throw Exception('Supabase Error saving favorite: ${e.message}');
+  } catch (e) {
+    throw Exception('Failed to save favorite: $e');
   }
+}
+
+/// Fetches the unique ID of a favorite place based on coordinates and user ID.
+/// This is a private helper function used for deletion.
+Future<String?> fetchFavoriteIdByCoordinates(
+    double lat, double lon, String userId) async {
+  // Important: Round coordinates to avoid floating-point errors when searching
+  final roundedLat = double.parse(lat.toStringAsFixed(6));
+  final roundedLon = double.parse(lon.toStringAsFixed(6));
 
   try {
-    // Attempt to fetch one record matching the user ID and coordinates
     final response = await supabase
         .from('favorites')
-        .select('id') // Only fetch the ID for efficiency
+        .select('id') // Select the unique ID
         .eq('user_id', userId)
-        .eq('latitude', latitude)
-        .eq('longitude', longitude)
-        .limit(1); // Stop after finding the first match
+        .eq('latitude', roundedLat)
+        .eq('longitude', roundedLon)
+        .limit(1);
 
-    // If the response list is NOT empty, a matching favorite exists
-    return response.isNotEmpty;
-  } on PostgrestException catch (e) {
-    print('Supabase check favorite error: ${e.message}');
-    return false; // Assume not favorite on error
+    if (response.isNotEmpty) {
+      return response.first['id'] as String;
+    }
+    return null;
   } catch (e) {
-    print('Unexpected error checking favorite: $e');
-    return false;
+    debugPrint('Error fetching favorite ID by coordinates: $e');
+    return null;
   }
+}
+
+/// Deletes a favorite place entry based on its unique ID.
+Future<void> deleteFavoriteFromBackendById(
+    String favoriteId, String userId) async {
+  try {
+    await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('id', favoriteId); // <-- Delete by unique ID
+  } on PostgrestException catch (e) {
+    throw Exception('Supabase Error deleting favorite by ID: ${e.message}');
+  } catch (e) {
+    throw Exception('Failed to delete favorite by ID: $e');
+  }
+}
+
+// 🌟 FIX: NEW COORDINATE-BASED DELETE FUNCTION FOR MAPSCREEN 🌟
+/// Deletes a favorite place entry based on latitude, longitude, and user ID.
+/// This function is intended to be called by MapScreen for un-favoriting.
+Future<void> deleteFavoriteByCoordinates(
+    double lat, double lon, String userId) async {
+  // 1. Find the unique ID based on the coordinates
+  final favoriteId = await fetchFavoriteIdByCoordinates(lat, lon, userId);
+
+  if (favoriteId != null) {
+    // 2. Use the ID to perform the actual deletion
+    await deleteFavoriteFromBackendById(favoriteId, userId);
+  }
+  // If favoriteId is null, it means the item wasn't found,
+  // so there's nothing to delete (it silently succeeds).
 }
