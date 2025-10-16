@@ -941,6 +941,13 @@ String _extractColorName(String routeName) {
   return routeName.split(' ').last;
 }
 
+List<String> get uniqueNodeNames {
+  // Access the values of the already initialized map 'allNodes'
+  final allNames = allNodes.values.map((node) => node.name).toList();
+  
+  // Use a Set to ensure all names are unique, then return as a List
+  return allNames.toSet().toList();
+}
 // --- STEP 3: GRAPH BUILDING (Automatic) ---
 
 /// Builds the final JeepneyGraph from the defined nodes and raw edge sequences.
