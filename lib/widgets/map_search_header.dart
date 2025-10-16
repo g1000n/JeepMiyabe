@@ -1,22 +1,123 @@
+// widgets/map_search_header.dart
+
 import 'package:flutter/material.dart';
 
 /// The custom search bar and settings icon for the top of the map screen.
-class MapSearchHeader extends StatelessWidget {
+class MapSearchHeader extends StatefulWidget {
   final Color primaryColor;
+  final List<String> nodeNames;
+  final Function(String query) onSearch;
 
-  const MapSearchHeader({super.key, required this.primaryColor});
+  const MapSearchHeader({
+    super.key,
+    required this.primaryColor,
+    required this.nodeNames,
+    required this.onSearch,
+  });
+
+  @override
+  State<MapSearchHeader> createState() => _MapSearchHeaderState();
+}
+
+class _MapSearchHeaderState extends State<MapSearchHeader> {
+  final TextEditingController _controller = TextEditingController();
+  String? _suggestion;
+
+  // Define a consistent text style for both input and suggestion
+  static const TextStyle _baseTextStyle = TextStyle(
+    fontSize: 14.0,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // 🎯 FIX: Add listener to ensure suggestions update as user types
+    _controller.addListener(_updateSuggestion);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_updateSuggestion);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Finds the first node name that starts with the current text input.
+  void _updateSuggestion() {
+    final query = _controller.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _suggestion = null;
+      });
+      return;
+    }
+
+    // Find the first name that starts with the query (case-insensitive)
+    final foundName = widget.nodeNames.firstWhere(
+      (name) => name.toLowerCase().startsWith(query.toLowerCase()),
+      orElse: () => '',
+    );
+
+    setState(() {
+      // If a match is found and it's longer than the query, set the suggestion
+      if (foundName.isNotEmpty && foundName.length > query.length) {
+        _suggestion = foundName;
+      } else {
+        _suggestion = null;
+      }
+    });
+  }
+
+  /// Handler for when the user taps on the search bar or hits enter.
+  void _handleSearch() {
+    String finalQuery = _controller.text.trim();
+
+    // If there's a suggestion and the user hits enter, use the full suggestion.
+    if (_suggestion != null && finalQuery.isNotEmpty) {
+      // Use the full suggestion text to replace the input
+      finalQuery = _suggestion!;
+      _controller.text = finalQuery;
+      _controller.selection =
+          TextSelection.fromPosition(TextPosition(offset: finalQuery.length));
+    }
+
+    widget.onSearch(finalQuery);
+    // Remove focus to hide the keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+    // Recalculate suggestion after handling search
+    _updateSuggestion();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Text style for the suggestion (light, faint text)
+    final TextStyle suggestionStyle = _baseTextStyle.copyWith(
+      color: Colors.grey.shade400, // Very faint color
+    );
+
+    // Style for the user's input (normal color)
+    final TextStyle inputStyle = _baseTextStyle.copyWith(
+      color: Colors.black,
+    );
+
+    // The query part of the suggestion (what the user has already typed)
+    final String queryPart = _controller.text.trim();
+    // The autocompleted part of the suggestion
+    final String suggestionPart =
+        _suggestion != null && _suggestion!.startsWith(queryPart)
+            ? _suggestion!.substring(queryPart.length)
+            : '';
+
     return Row(
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(30.0),
-              border: Border.all(color: primaryColor, width: 2.5),
+              border: Border.all(color: widget.primaryColor, width: 2.5),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -25,30 +126,79 @@ class MapSearchHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.search, color: Colors.grey),
-                SizedBox(width: 10),
+                const Icon(Icons.search, color: Colors.grey),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search Christ, Our Lord of the...',
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                  // 🎯 FIX: Simplified Stack for suggestion overlay
+                  child: Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      // 1. The Faint Suggestion Text (Full suggested word)
+                      if (_suggestion != null)
+                        Text(
+                          _suggestion!,
+                          style: suggestionStyle,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                      // 2. The User's Actual Text Field
+                      TextField(
+                        controller: _controller,
+                        onSubmitted: (value) => _handleSearch(),
+                        style: inputStyle,
+                        decoration: InputDecoration(
+                          hintText: 'Search for a jeepney stop...',
+                          hintStyle: _baseTextStyle.copyWith(
+                              color: Colors.grey.shade600),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+
+                          // 🎯 CRITICAL FIX: Make the background transparent
+                          filled: true,
+                          fillColor:
+                              Colors.transparent, // Ensure no background color
+
+                          hintFadeDuration:
+                              _suggestion != null ? Duration.zero : null,
+                        ),
+                        // Makes the typed text transparent so only the suggestion is visible
+                        // while the cursor is correctly positioned.
+                        // NOTE: We are removing this transparency and instead relying on the
+                        // suggestion text to be behind the standard text input.
+                      ),
+                    ],
                   ),
                 ),
+
+                // Add an explicit button to confirm the suggestion if available
+                if (_suggestion != null && queryPart.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      // Accept the suggestion
+                      _controller.text = _suggestion!;
+                      _controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: _suggestion!.length));
+                      _handleSearch();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Icon(Icons.arrow_forward,
+                          color: widget.primaryColor, size: 20),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
         const SizedBox(width: 10),
-        // Settings Gear Icon
+        // Settings Gear Icon (Unchanged)
         Container(
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
-            color: primaryColor,
+            color: widget.primaryColor,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
