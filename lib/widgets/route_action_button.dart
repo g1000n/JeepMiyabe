@@ -37,27 +37,32 @@ class RouteActionButton extends StatelessWidget {
       icon = Icons.hourglass_top;
       color = Colors.grey;
       action = () {}; // No action while searching
-    } else if (startPointSet && endPointSet) {
-      // Route is set, show Clear button
+    } 
+    // 🛑 FIX IMPLEMENTED HERE 🛑
+    else if (startPointSet && endPointSet) {
+      // State 2: Route is set (before finding route or after finishing a route)
       text = 'Clear Route';
       icon = Icons.clear;
       color = Colors.red.shade700;
       action = clearRoute;
-    } else if (isSelectingPoints) {
-      // Selection mode is ON, but route is incomplete (start or end not set yet)
-      // The button becomes passive, just showing status. Tapping is done on the map.
-      text = !startPointSet ? 'Tap Map for Start' : 'Tap Map for Destination';
-      icon = Icons.location_searching;
-      color = Colors.blue.shade700;
-      action = () {}; // Passive action, tapping happens on the map
+    } 
+    else if (isSelectingPoints) {
+      // State 3: Selection mode is ON, show CANCEL button.
+      // It doesn't matter if startPointSet is true or false here,
+      // the only active choice is to cancel the mode entirely.
+      text = 'Cancel Selection'; 
+      icon = Icons.cancel; 
+      color = Colors.orange.shade800; // Use a distinct color for cancel
+      action = clearRoute; // The clearRoute function is perfect for cancelling the selection mode
     } 
     else {
-      // Selection mode is OFF, user must press the button to start
+      // State 4: Selection mode is OFF, user must press the button to start
       text = 'Start New Route';
       icon = Icons.map;
       color = primaryColor;
       action = enableSelection; // Calls the function to enable map tapping
     }
+    // 🛑 END FIX 🛑
 
     return ElevatedButton.icon(
       onPressed: action,

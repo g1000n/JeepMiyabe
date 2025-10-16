@@ -14,7 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jeepmiyabe/auth_service.dart'; // <--- Required import for getCurrentUserId()
 
 // NOTE: You must initialize Supabase in your main.dart for this to work.
-// Since you provided the code snippet, I'll keep the variable here but 
+// Since you provided the code snippet, I'll keep the variable here but
 // it will assume proper initialization in the main app.
 final supabase = Supabase.instance.client;
 
@@ -85,7 +85,7 @@ class MapScreen extends StatefulWidget {
   const MapScreen({
     super.key,
     // Provide default values here, like the original hardcoded ones
-    this.initialLatitude = 15.1466, 
+    this.initialLatitude = 15.1466,
     this.initialLongitude = 120.5960,
     this.initialZoom = 13.5,
   });
@@ -273,7 +273,7 @@ class _MapScreenState extends State<MapScreen> {
       _isSearching = true;
       _currentRoute.clear();
       // Remove network lines (optional, but keeps map clean)
-      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_')); 
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
     });
     try {
@@ -333,23 +333,27 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
     }
-    
+
     if (segments.isEmpty) return; // Avoid calculating bounds on empty route
 
     // Calculate bounds from all polyline points
     final allPoints = segments.expand((s) => s.path).toList();
-    
+
     // Check if we have enough points
     if (allPoints.length < 2) return;
 
-    double minLat = allPoints.map((p) => p.latitude).reduce((a, b) => a < b ? a : b);
-    double maxLat = allPoints.map((p) => p.latitude).reduce((a, b) => a > b ? a : b);
-    double minLng = allPoints.map((p) => p.longitude).reduce((a, b) => a < b ? a : b);
-    double maxLng = allPoints.map((p) => p.longitude).reduce((a, b) => a > b ? a : b);
+    double minLat =
+        allPoints.map((p) => p.latitude).reduce((a, b) => a < b ? a : b);
+    double maxLat =
+        allPoints.map((p) => p.latitude).reduce((a, b) => a > b ? a : b);
+    double minLng =
+        allPoints.map((p) => p.longitude).reduce((a, b) => a < b ? a : b);
+    double maxLng =
+        allPoints.map((p) => p.longitude).reduce((a, b) => a > b ? a : b);
 
     final LatLngBounds bounds = LatLngBounds(
-        southwest: LatLng(minLat, minLng),
-        northeast: LatLng(maxLat, maxLng),
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
     );
 
     _mapController?.animateCamera(
@@ -492,8 +496,9 @@ class _MapScreenState extends State<MapScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              icon: Icon(
-                                  _isFavoriteTo ? Icons.star : Icons.star_border),
+                              icon: Icon(_isFavoriteTo
+                                  ? Icons.star
+                                  : Icons.star_border),
                               label: const Text('Favorite To:'),
                               onPressed: () async {
                                 final shouldFavorite = !_isFavoriteTo;
@@ -523,7 +528,8 @@ class _MapScreenState extends State<MapScreen> {
                                       longitude: _endPoint!.longitude,
                                       description: 'Saved from route',
                                     );
-                                    await saveFavoriteToBackend(favorite, userId);
+                                    await saveFavoriteToBackend(
+                                        favorite, userId);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                           content: Text('Added to favorites!')),
@@ -546,8 +552,8 @@ class _MapScreenState extends State<MapScreen> {
                                   modalSetState(() {
                                     _isFavoriteTo = shouldFavorite;
                                   });
-                                  setState(() {}); // Optional: ensures the whole MapScreen state knows
-
+                                  setState(
+                                      () {}); // Optional: ensures the whole MapScreen state knows
                                 } catch (e) {
                                   // 🛑 FAILURE: If it fails, only update the modal to show the error
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -698,7 +704,9 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          if (_currentRoute.isNotEmpty && !_isSelectingPoints)
+          if (_currentRoute.isNotEmpty &&
+              !_isSelectingPoints &&
+              !_showStepOverlay) // <--- ADDED: && !_showStepOverlay
             Positioned(
               top: 350,
               left: MediaQuery.of(context).size.width / 2 - 80,
@@ -816,7 +824,8 @@ class _MapScreenState extends State<MapScreen> {
                                   child: const Text('Previous'),
                                 ),
                               const SizedBox(
-                                  width: 8), // Added spacing between prev/next/done
+                                  width:
+                                      8), // Added spacing between prev/next/done
                               if (_currentStepIndex < _currentRoute.length - 1)
                                 ElevatedButton(
                                   onPressed: () {
