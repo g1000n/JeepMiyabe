@@ -5,8 +5,8 @@ import '../favorite_place.dart'; // Import the model and functions
 import 'map_screen.dart'; // Import MapScreen to navigate when selecting a favorite
 
 // --- CONSTANTS ---
-const Color kPrimaryColor = Color(0xFFE4572E); 
-const Color kCardColor = Color(0xFFFC775C); 
+const Color kPrimaryColor = Color(0xFFE4572E);
+const Color kCardColor = Color(0xFFFC775C);
 const Color kBackgroundColor = Color(0xFFFDF8E2);
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ class FavoritesPage extends StatefulWidget {
 class _FavoritesPageState extends State<FavoritesPage> {
   // Use late initialization as it's set in initState
   late Future<List<FavoritePlace>> _favoritesFuture;
-  
+
   // Get user ID once in the state
   final String _userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
@@ -30,21 +30,24 @@ class _FavoritesPageState extends State<FavoritesPage> {
   initState() {
     super.initState();
     // Start fetching data immediately
-    _favoritesFuture = _fetchFavorites(); 
+    _favoritesFuture = _fetchFavorites();
   }
 
   // Wrapper function to fetch favorites, checking for a valid user
   Future<List<FavoritePlace>> _fetchFavorites() async {
     if (_userId.isEmpty) {
+      // Return an empty list immediately if the user is not logged in
       return Future.value([]);
     }
     // Call the function from favorite_place.dart
     try {
+      // This line was previously causing an error if the import or function was missing.
       return await fetchFavoritesForUser(_userId);
     } catch (e) {
       // If there is an error during fetch, return empty list and print error
       print('Error fetching favorites: $e');
-      return [];
+      // Re-throw the error so FutureBuilder can handle it gracefully.
+      throw e;
     }
   }
 
@@ -55,7 +58,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
   }
 
-  // Handler for when a favorite place is tapped (Navigation is separate issue, but kept here)
+  // Handler for when a favorite place is tapped
   void _onFavoriteTapped(FavoritePlace favorite) {
     // Navigate to the MapScreen and pass the favorite's coordinates
     Navigator.of(context).push(
@@ -73,9 +76,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Favorite Places', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Your Favorite Places',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: kPrimaryColor,
-        automaticallyImplyLeading: false, 
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -85,19 +89,27 @@ class _FavoritesPageState extends State<FavoritesPage> {
         ],
       ),
       backgroundColor: kBackgroundColor,
-      
+
       // Use FutureBuilder to handle the asynchronous data fetching
       body: FutureBuilder<List<FavoritePlace>>(
         future: _favoritesFuture,
         builder: (context, snapshot) {
           // 1. Loading State
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
+            return const Center(
+                child: CircularProgressIndicator(color: kPrimaryColor));
           }
 
-          // 2. Error State (Handles errors caught in _fetchFavorites)
+          // 2. Error State
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: kPrimaryColor)));
+            // Note: Error is handled in _fetchFavorites and re-thrown
+            return Center(
+                child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text('Error loading favorites. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red, fontSize: 16)),
+            ));
           }
 
           // 3. Data Loaded State
@@ -109,12 +121,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.bookmark_border, size: 80, color: kPrimaryColor),
+                  const Icon(Icons.bookmark_border,
+                      size: 80, color: kPrimaryColor),
                   const SizedBox(height: 10),
                   Text(
-                    _userId.isEmpty 
-                      ? 'You must be logged in to view favorites.' 
-                      : 'You haven\'t saved any favorites yet.',
+                    _userId.isEmpty
+                        ? 'You must be logged in to view favorites.'
+                        : 'You haven\'t saved any favorites yet.',
                     style: const TextStyle(color: kPrimaryColor, fontSize: 16),
                   ),
                 ],
@@ -124,7 +137,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
           // 3b. List View
           return ListView.builder(
-            padding: const EdgeInsets.only(top: 10, bottom: 80), 
+            padding: const EdgeInsets.only(top: 10, bottom: 80),
             itemCount: favorites.length,
             itemBuilder: (context, index) {
               final favorite = favorites[index];
@@ -148,15 +161,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
         leading: const Icon(Icons.location_pin, color: Colors.white, size: 30),
         title: Text(
           favorite.name,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
         ),
         subtitle: Text(
-          favorite.description ?? 'Lat: ${favorite.latitude.toStringAsFixed(4)}, Lon: ${favorite.longitude.toStringAsFixed(4)}',
+          favorite.description ??
+              'Lat: ${favorite.latitude.toStringAsFixed(4)}, Lon: ${favorite.longitude.toStringAsFixed(4)}',
           style: const TextStyle(fontSize: 12, color: Colors.white70),
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete, color: Colors.white70),
-          onPressed: () => _confirmDelete(context, favorite), // Triggers delete flow
+          onPressed: () =>
+              _confirmDelete(context, favorite), // Triggers delete flow
           tooltip: 'Delete Favorite',
         ),
       ),
@@ -169,7 +185,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Favorite?'),
-        content: Text('Are you sure you want to remove "${favorite.name}" from your favorites?'),
+        content: Text(
+            'Are you sure you want to remove "${favorite.name}" from your favorites?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -178,32 +195,28 @@ class _FavoritesPageState extends State<FavoritesPage> {
           TextButton(
             onPressed: () async {
               // 1. Close dialog immediately
-              Navigator.of(context).pop(); 
-              
+              Navigator.of(context).pop();
+
               // 2. Perform delete operation
               try {
-                // Use the latitude and longitude from the FAVORITE object
-                await deleteFavoriteFromBackend(
-                  favorite.latitude, 
-                  favorite.longitude, 
-                  _userId
-                );
-                
+                // Call the function from favorite_place.dart
+                await deleteFavoriteFromBackendById(favorite.id, _userId);
+
                 // 3. Show success message and refresh UI
-                if(mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${favorite.name} removed.'), backgroundColor: Colors.green)
-                  );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('${favorite.name} removed.'),
+                      backgroundColor: Colors.green));
                 }
-                // *** THIS IS THE CRITICAL LINE TO REFRESH THE LIST ***
-                _refreshFavorites(); 
-                
+                // *** CRITICAL LINE: Refresh the list ***
+                _refreshFavorites();
               } catch (e) {
                 // 4. Show error message on failure
-                if(mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete favorite: ${e.toString()}'), backgroundColor: Colors.red)
-                  );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content:
+                          Text('Failed to delete favorite: ${e.toString()}'),
+                      backgroundColor: Colors.red));
                 }
               }
             },

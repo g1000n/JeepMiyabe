@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:jeepmiyabe/favorite_place.dart';
+import 'package:jeepmiyabe/favorite_place.dart'; // Contains service functions
 import 'dart:collection';
 import '../jeepney_network_data.dart';
 import '../graph_models.dart';
@@ -12,9 +12,12 @@ import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jeepmiyabe/auth_service.dart';
+import 'package:jeepmiyabe/auth_service.dart';
+import 'package:uuid/uuid.dart';
+import 'package:jeepmiyabe/auth_service.dart';
 import '../jeepney_network_data.dart';
 import 'package:collection/collection.dart';
-import 'package:jeepmiyabe/jeepney_network_data.dart'; 
+import 'package:jeepmiyabe/jeepney_network_data.dart';
 
 // NOTE: You must initialize Supabase in your main.dart for this to work.
 // Since you provided the code snippet, I'll keep the variable here but
@@ -22,6 +25,7 @@ import 'package:jeepmiyabe/jeepney_network_data.dart';
 // Assumes the following functions exist globally or in AuthService:
 // getCurrentUserId(), saveFavoriteToBackend(), isFavoriteInBackend(), deleteFavoriteFromBackend()
 final supabase = Supabase.instance.client;
+final Uuid _uuid = const Uuid(); // <--- NEW: Uuid generator
 
 // Global state variables for the overlays (static/top-level variables)
 int _currentStepIndex = 0;
@@ -155,7 +159,8 @@ class _MapScreenState extends State<MapScreen> {
   /// Loads all nodes as markers and all route segments as faint polylines
   void _loadNetworkVisualization() {
     _polylines.clear();
-    _markers.removeWhere((m) => m.markerId.value.startsWith('USER_')); // Keep user markers only
+    _markers.removeWhere(
+        (m) => m.markerId.value.startsWith('USER_')); // Keep user markers only
     _currentRoute.clear();
 
     // Add all permanent network nodes as small markers
@@ -254,7 +259,8 @@ class _MapScreenState extends State<MapScreen> {
         _isSelectingPoints = true; // Stay in selection mode after clearing
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Route cleared. Tap the map to set Start Location.')),
+              content:
+                  Text('Route cleared. Tap the map to set Start Location.')),
         );
       }
     });
@@ -290,46 +296,46 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
- // Inside the _MapScreenState class
+  // Inside the _MapScreenState class
 
-Future<void> _findRoute() async {
-  if (_startPoint == null || _endPoint == null) return;
+  Future<void> _findRoute() async {
+    if (_startPoint == null || _endPoint == null) return;
 
-  setState(() {
-    _isSearching = true;
-    _currentRoute.clear();
-    // Remove previous route lines
-    // Note: If you have the network polylines visible, this line clears them too.
-    _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
-    _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
-  });
-  try {
-    // NOTE: Assumes 'findPathWithGPS' is correctly implemented
-    final segments =
-        await _routeFinder.findPathWithGPS(_startPoint!, _endPoint!);
     setState(() {
-      _currentRoute = segments;
-      _drawRoutePolylines(segments);
-      _isConfirmed = true; // Set confirmation flag once route is found
+      _isSearching = true;
+      _currentRoute.clear();
+      // Remove previous route lines
+      // Note: If you have the network polylines visible, this line clears them too.
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
     });
-    if (segments.isEmpty) {
+    try {
+      // NOTE: Assumes 'findPathWithGPS' is correctly implemented
+      final segments =
+          await _routeFinder.findPathWithGPS(_startPoint!, _endPoint!);
+      setState(() {
+        _currentRoute = segments;
+        _drawRoutePolylines(segments);
+        _isConfirmed = true; // Set confirmation flag once route is found
+      });
+      if (segments.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No possible jeepney route found.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Route finding error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No possible jeepney route found.')),
+        SnackBar(
+            content: Text(
+                'An error occurred during route finding: ${e.toString().split(':')[0]}')),
       );
+    } finally {
+      setState(() {
+        _isSearching = false;
+      });
     }
-  } catch (e) {
-    debugPrint('Route finding error: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-              'An error occurred during route finding: ${e.toString().split(':')[0]}')),
-    );
-  } finally {
-    setState(() {
-      _isSearching = false;
-    });
   }
-}
 
   void _clearRoute() {
     setState(() {
@@ -393,41 +399,44 @@ Future<void> _findRoute() async {
     );
   }
 
-void onSearchCallback(String query) {
-  final String lowercaseQuery = query.toLowerCase();
+  void onSearchCallback(String query) {
+    final String lowercaseQuery = query.toLowerCase();
 
-  final Node? matchingNode = allNodes.values.firstWhereOrNull(
-    (node) => node.name.toLowerCase() == lowercaseQuery,
-  );
-
-  // 1. Node Not Found: Show error and stop.
-  if (matchingNode == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Node "$query" not found in the network data.')),
+    final Node? matchingNode = allNodes.values.firstWhereOrNull(
+      (node) => node.name.toLowerCase() == lowercaseQuery,
     );
-    return;
-  }
-  
-  // Node Found: Get the position.
-  final LatLng newPosition = matchingNode.position;
 
-  // 2. Animate Camera: Move the map view to the found node.
-  // We use the null assertion operator (!) because we know matchingNode is not null.
-  _mapController?.animateCamera(
-    CameraUpdate.newLatLngZoom(newPosition, 16.0), // Zoom in a bit (e.g., zoom 16)
-  );
-  
-  // 3. Show Success Feedback:
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('Location found: "${matchingNode.name}". Zooming to area.'),
-      duration: const Duration(milliseconds: 1500),
-    ),
-  );
-  
-  // 4. IMPORTANT: Skip setState and all route logic.
-  // We do NOT modify _startPoint, _endPoint, _isConfirmed, or call _updateMarkers().
-}
+    // 1. Node Not Found: Show error and stop.
+    if (matchingNode == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Node "$query" not found in the network data.')),
+      );
+      return;
+    }
+
+    // Node Found: Get the position.
+    final LatLng newPosition = matchingNode.position;
+
+    // 2. Animate Camera: Move the map view to the found node.
+    // We use the null assertion operator (!) because we know matchingNode is not null.
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(
+          newPosition, 16.0), // Zoom in a bit (e.g., zoom 16)
+    );
+
+    // 3. Show Success Feedback:
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content:
+            Text('Location found: "${matchingNode.name}". Zooming to area.'),
+        duration: const Duration(milliseconds: 1500),
+      ),
+    );
+
+    // 4. IMPORTANT: Skip setState and all route logic.
+    // We do NOT modify _startPoint, _endPoint, _isConfirmed, or call _updateMarkers().
+  }
+
   // Define a new function that acts as the entry point for showing the full instructions sheet
   // This helps when calling it from the step-by-step overlay.
   void _showFullInstructions() {
@@ -440,16 +449,14 @@ void onSearchCallback(String query) {
 
   void _showInstructionsSheet() async {
     // ... (LOGIC 1: Check initial favorite status - KEEP THIS UNCHANGED)
-    // NOTE: Assumes getCurrentUserId() is implemented in auth_service.dart
     final userId = getCurrentUserId();
 
     if (userId != null && _endPoint != null) {
       try {
-        // NOTE: Assumes 'isFavoriteInBackend' is correctly implemented
         final isCurrentlyFavorite = await isFavoriteInBackend(
           _endPoint!.latitude,
           _endPoint!.longitude,
-          userId,
+          userId, // Pass the userId now!
         );
 
         // We update the state of the *parent* widget so the initial sheet state is correct
@@ -588,12 +595,10 @@ void onSearchCallback(String query) {
                                 try {
                                   if (shouldFavorite) {
                                     // --- SAVE LOGIC ---
-                                    // NOTE: Assumes FavoritePlace is correctly defined
                                     final favorite = FavoritePlace(
-                                      id: DateTime.now()
-                                          .millisecondsSinceEpoch
-                                          .toString(),
-                                      name: 'Favorite Place',
+                                      id: _uuid.v4(), // Generate a UUID
+                                      name: getApproximateLocationName(
+                                          _endPoint!), // Use a better name if available
                                       latitude: _endPoint!.latitude,
                                       longitude: _endPoint!.longitude,
                                       description: 'Saved from route',
@@ -607,8 +612,8 @@ void onSearchCallback(String query) {
                                     );
                                   } else {
                                     // --- DELETE (UN-FAVORITE) LOGIC ---
-                                    // NOTE: Assumes 'deleteFavoriteFromBackend' is correctly implemented
-                                    await deleteFavoriteFromBackend(
+                                    // Delete is called globally and correctly passes params
+                                    await deleteFavoriteByCoordinates(
                                         _endPoint!.latitude,
                                         _endPoint!.longitude,
                                         userId);
@@ -737,7 +742,6 @@ void onSearchCallback(String query) {
     );
     // 🛑 FIX END
 
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: Stack(
@@ -768,18 +772,19 @@ void onSearchCallback(String query) {
               child: _buildSelectionHeader(),
             )
           else
-Positioned(
-  top: 40,
-  left: 20,
-  right: 20,
-  child: SafeArea(
-    child: MapSearchHeader(
-      primaryColor: primaryColor,
-      nodeNames: uniqueNodeNames, // 🎯 CRITICAL FIX: Use the global getter name
-      onSearch: onSearchCallback,
-    ),
-  ),
-),
+            Positioned(
+              top: 40,
+              left: 20,
+              right: 20,
+              child: SafeArea(
+                child: MapSearchHeader(
+                  primaryColor: primaryColor,
+                  nodeNames:
+                      uniqueNodeNames, // 🎯 CRITICAL FIX: Use the global getter name
+                  onSearch: onSearchCallback,
+                ),
+              ),
+            ),
 
           if (_currentRoute.isNotEmpty &&
               !_isSelectingPoints &&
