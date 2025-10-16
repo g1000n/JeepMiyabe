@@ -531,7 +531,6 @@ class _MapScreenState extends State<MapScreen> {
                                       longitude: _endPoint!.longitude,
                                       description: 'Saved from route',
                                     );
-                                    // 🛑 FIX for Error 531: saveFavoriteToBackend is now called globally
                                     await saveFavoriteToBackend(
                                         favorite, userId);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -709,7 +708,9 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          if (_currentRoute.isNotEmpty && !_isSelectingPoints)
+          if (_currentRoute.isNotEmpty &&
+              !_isSelectingPoints &&
+              !_showStepOverlay) // <--- ADDED: && !_showStepOverlay
             Positioned(
               top: 350,
               left: MediaQuery.of(context).size.width / 2 - 80,
