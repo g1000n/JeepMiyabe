@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/auth_storage.dart'; // Adjust path to your AuthStorage file
 import 'profile_page.dart'; // Import the new ProfilePage (adjust path)
 import 'map_screen.dart'; // Import your MapScreen
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../routes.dart';
 
 // --- CONSTANTS ---
 const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
@@ -16,14 +18,51 @@ const Color kCardColor = Color(0xFFFC775C); // A lighter orange for the backgrou
 class JeepInfoSheetContent extends StatelessWidget {
   final String routeName;
   final String colorName;
-  final int fare;
 
   const JeepInfoSheetContent({
     super.key,
     required this.routeName,
     required this.colorName,
-    required this.fare,
   });
+
+  // Color-to-Jeep Icon Map
+  String _getJeepIcon(String colorName) {
+    final Map<String, String> jeepIcons = {
+      'Sand': 'assets/color_sand.png',
+      'Grey': 'assets/color_grey.png',
+      'Various': 'assets/color_various.png',
+      'White': 'assets/color_white.png',
+      'Maroon': 'assets/color_maroon.png',
+      'Lavander': 'assets/color_lavender.png',
+      'Green': 'assets/color_green.png',
+      'Blue': 'assets/color_blue.png',
+      'Orange': 'assets/color_orange.png',
+      'Yellow': 'assets/color_yellow.png',
+      'Pink': 'assets/color_pink.png',
+    };
+
+    return jeepIcons[colorName] ?? 'assets/jeepney.png';
+  }
+
+
+  // Route-Image Map
+  String _getRouteImage(String routeName){
+    final Map<String, String> routeImages = {
+      'Main Gate - Friendship': 'assets/main_gate_friendship.png',
+      'C-Point - Balibago - H\'way': 'assets/cpoint_balibago.png',
+      'SM City - Main Gate - Dau': 'assets/sm_main_dau.png',
+      'Checkpoint - Hensonville - Holy': 'assets/checkpoint_holy_highway.png',
+      'Sapang Bato - Angles': 'assets/sapang_bato.png',
+      'Checkpoint - Holy - Highway': 'assets/checkpoint_holy_highway.png',
+      'Marisol - Pampang': 'assets/marisol_pampang.png',
+      'Pandan - Pampang': 'assets/pandan_pampang.png',
+      'Sunset - Nepo': 'assets/sunset_nepo.png',
+      'Villa - Pampang - SM Telebastagan': 'assets/villa_pampang_sm.png',
+      'Capaya - Angeles': 'assets/capaya_angeles.png',
+    };
+
+    return routeImages[routeName] ?? 'assets/jeepney.png'; // Default image if not found
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,9 +121,16 @@ class JeepInfoSheetContent extends StatelessWidget {
                         padding: const EdgeInsets.all(8.0),
                         child: AspectRatio(
                           aspectRatio: 16 / 9, // Adjust ratio as needed
-                          child: Container(
-                            color: Colors.white, // Placeholder for map image
-                            child: const Center(child: Text("Route Map Placeholder", style: TextStyle(color: Colors.black54))),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            //color: Colors.white, // Placeholder for map image
+                            child: Image.asset(
+                              _getRouteImage(routeName),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Text("No Image Available", style: TextStyle(color: Colors.black54)),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -101,7 +147,8 @@ class JeepInfoSheetContent extends StatelessWidget {
                         // Jeep Image (Centered)
                         Center(
                           child: Image.asset(
-                            'assets/jeepney.png', // **Use the general jeep image or specific one if you have it**
+                            //_getJeepIcon(colorName), //Use this for the colored icons
+                            'assets/jeepney.png',
                             width: 150,
                             height: 100,
                             fit: BoxFit.contain,
@@ -110,7 +157,7 @@ class JeepInfoSheetContent extends StatelessWidget {
                         
                         const SizedBox(height: 10),
 
-                        // Route Name and Fare (Row)
+                        // Route Name (Row)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -121,14 +168,6 @@ class JeepInfoSheetContent extends StatelessWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 22,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              'Fare: PHP $fare',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
                                 color: Colors.white,
                               ),
                             ),
@@ -159,6 +198,28 @@ class JeepInfoSheetContent extends StatelessWidget {
                           ),
                           textAlign: TextAlign.justify,
                         ),
+
+                        const SizedBox(height: 20),
+
+                        // Button for Viewing Fare Matrix
+                        GestureDetector(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => FareMatrixSheet(),
+                            );
+                          },
+                          child: const Text (
+                            'View Fare',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -178,14 +239,30 @@ class JeepInfoSheetContent extends StatelessWidget {
 class JeepRouteCard extends StatelessWidget {
   final String routeName;
   final String colorName;
-  final int fare;
 
   const JeepRouteCard({
     super.key,
     required this.routeName,
     required this.colorName,
-    required this.fare,
   });
+
+  // Color-to-Jeep Icon Map
+  String _getJeepIcon(String colorName) {
+    final Map<String, String> jeepIcons = {
+      'Sand': 'assets/color_sand.png',
+      'Grey': 'assets/color_grey.png',
+      'Various': 'assets/color_various.png',
+      'White': 'assets/color_white.png',
+      'Maroon': 'assets/color_maroon.png',
+      'Lavander': 'assets/color_lavender.png',
+      'Green': 'assets/color_green.png',
+      'Blue': 'assets/color_blue.png',
+      'Orange': 'assets/color_orange.png',
+      'Yellow': 'assets/color_yellow.png',
+      'Pink': 'assets/color_pink.png',
+    };
+    return jeepIcons[colorName] ?? 'assets/jeepney.png';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +273,7 @@ class JeepRouteCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: InkWell(
         onTap: () {
-          // 🛑 FIX: Use showModalBottomSheet to display the detailed info screen
+          // FIX: Use showModalBottomSheet to display the detailed info screen
           showModalBottomSheet(
             context: context,
             isScrollControlled: true, // Allows the sheet to take up most of the screen
@@ -205,7 +282,6 @@ class JeepRouteCard extends StatelessWidget {
               return JeepInfoSheetContent(
                 routeName: routeName,
                 colorName: colorName,
-                fare: fare,
               );
             },
           );
@@ -215,7 +291,7 @@ class JeepRouteCard extends StatelessWidget {
           child: Row(
             children: [
               Image.asset(
-                'assets/jeepney.png', // **Ensure this asset exists and path is correct**
+                _getJeepIcon(colorName),
                 width: 50,
                 height: 35,
                 fit: BoxFit.contain,
@@ -258,15 +334,6 @@ class JeepRouteCard extends StatelessWidget {
                       style: TextStyle(fontSize: 9, color: Colors.white),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Fare: ₱$fare',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.white,
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -295,18 +362,12 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
   PersistentBottomSheetController? _bottomSheetController;
   late AnimationController _animationController;
   late Animation<double> _animation;
+
+  late final List<Widget> _pages;
   
   // Dynamic elevations to hide shadows when sheet is open
   double get _fabElevation => _isJeepListSheetOpen ? 0.0 : 4.0;
   double get _appBarElevation => _isJeepListSheetOpen ? 0.0 : 8.0;
-
-  final List<Widget> _pages = [
-    const MapScreen(), // Index 0: Home view (MapScreen)
-    const Center(child: Text('About Us Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 1
-    const SizedBox.shrink(), // Placeholder for FAB (Index 2)
-    const Center(child: Text('Favorites Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 3
-    const ProfilePage(), // Index 4: ProfilePage
-  ];
 
   @override
   void initState() {
@@ -318,6 +379,14 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
     );
     // Defines the rotation range (0.0 to 0.5 for 180 degrees)
     _animation = Tween<double>(begin: 0.0, end: 0.5).animate(_animationController);
+
+    _pages = [
+      const MapScreen(), // Index 0: Home view (MapScreen)
+      const Center(child: Text('About Us Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 1
+      const SizedBox.shrink(), // Placeholder for FAB (Index 2)
+      const Center(child: Text('Favorites Tab Selected', style: TextStyle(color: kPrimaryColor, fontSize: 24, fontWeight: FontWeight.bold))), // Index 3
+      ProfilePage(onLogout: () => _logout(context)), // Index 4: ProfilePage
+    ];
   }
 
   @override
@@ -428,11 +497,17 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
             child: ListView(
               shrinkWrap: true,
               children: const [
-                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Sand', fare: 12),
-                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Pink', fare: 13),
-                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Blue', fare: 15),
-                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Yellow', fare: 14),
-                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Red', fare: 16),
+                JeepRouteCard(routeName: 'Main Gate - Friendship', colorName: 'Sand'),
+                JeepRouteCard(routeName: 'C-Point - Balibago - H\'way', colorName: 'Grey'),
+                JeepRouteCard(routeName: 'SM City - Main Gate - Dau', colorName: 'Various'),
+                JeepRouteCard(routeName: 'Checkpoint - Hensonville - Holy', colorName: 'White'),
+                JeepRouteCard(routeName: 'Sapang Bato - Angles', colorName: 'Maroon'),
+                JeepRouteCard(routeName: 'Checkpoint - Holy - Highway', colorName: 'Lavander'),
+                JeepRouteCard(routeName: 'Marisol - Pampang', colorName: 'Green'),
+                JeepRouteCard(routeName: 'Pandan - Pampang', colorName: 'Blue'),
+                JeepRouteCard(routeName: 'Sunset - Nepo', colorName: 'Orange'),
+                JeepRouteCard(routeName: 'Villa - Pampang - SM Telebastagan', colorName: 'Yellow'),
+                JeepRouteCard(routeName: 'Capaya - Angeles', colorName: 'Pink')
               ],
             ),
           ),
@@ -487,6 +562,9 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
           const SnackBar(content: Text("Logged out successfully."), backgroundColor: Colors.green),
         );
         // Navigator.pushReplacementNamed(context, '/welcome'); 
+
+        //Navigate back to welcome page and remove all previous routes
+        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (Route<dynamic> route) => false,);
       }
     } catch (e) {
       if (mounted) {
@@ -550,6 +628,141 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
             _buildNavItem(index: 4, icon: Icons.person, label: 'Profile'),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fare Matrix Sheet (Same color scheme as Jeep Info)
+// ---------------------------------------------------------------------------
+
+class FareMatrixSheet extends StatelessWidget {
+  const FareMatrixSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.of(context).size.height * 0.78;
+
+    // Table data
+    final List<Map<String,String>> fareData = [
+      {"Distance": "1", "Regular": "₱13.00", "Discounted": "₱10.50"},
+      {"Distance": "2", "Regular": "₱13.00", "Discounted": "₱10.50"},
+      {"Distance": "3", "Regular": "₱13.00", "Discounted": "₱10.50"},
+      {"Distance": "4", "Regular": "₱13.00", "Discounted": "₱10.50"},
+      {"Distance": "5", "Regular": "₱14.75", "Discounted": "₱11.75"},
+      {"Distance": "6", "Regular": "₱16.50", "Discounted": "₱13.25"},
+      {"Distance": "7", "Regular": "₱18.50", "Discounted": "₱14.75"},
+      {"Distance": "8", "Regular": "₱20.25", "Discounted": "₱16.25"},
+      {"Distance": "9", "Regular": "₱22.00", "Discounted": "₱17.50"},
+      {"Distance": "10", "Regular": "₱23.75", "Discounted": "₱19.00"},
+      {"Distance": "11", "Regular": "₱25.50", "Discounted": "₱20.50"},
+      {"Distance": "12", "Regular": "₱27.50", "Discounted": "₱22.00"},
+      {"Distance": "13", "Regular": "₱29.25", "Discounted": "₱23.25"},
+      {"Distance": "14", "Regular": "₱31.00", "Discounted": "₱24.75"},
+      {"Distance": "15", "Regular": "₱32.75", "Discounted": "₱26.25"},
+      {"Distance": "16", "Regular": "₱34.50", "Discounted": "₱27.75"},
+      {"Distance": "17", "Regular": "₱36.50", "Discounted": "₱29.00"},
+      {"Distance": "18", "Regular": "₱38.25", "Discounted": "₱30.50"},
+      {"Distance": "19", "Regular": "₱40.00", "Discounted": "₱32.00"},
+      {"Distance": "20", "Regular": "₱41.75", "Discounted": "₱33.50"},
+    ];
+
+    return Container(
+      height: maxHeight,
+      decoration: const BoxDecoration(
+        color: kPrimaryColor,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header (Back Button + Title)
+          Padding(
+            padding: const EdgeInsets.only(top: 10.0, right: 10.0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Text(
+                  'Fare Matrix',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Scrollable content area
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                color: kCardColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Jeepney Fare Rates',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      //Table Header
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Text('Distance (km)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text('Regular', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text('Discounted', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      //Table Rows
+                      ...fareData.map((fare) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              Text(fare["Distance"]!, style: const TextStyle(color: Colors.white)),
+                              Text(fare["Regular"]!, style: const TextStyle(color: Colors.white)),
+                              Text(fare["Discounted"]!, style: const TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],    
       ),
     );
   }
