@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.jeepmiyabe">
 
+    <!-- REQUIRED PERMISSIONS FOR GEOLOCATOR -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- REQUIRED FOR NETWORK ACCESS (e.g., Supabase, Flutter network calls) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- END REQUIRED PERMISSIONS -->
+
     <application
         android:label="jeepmiyabe"
         android:name="${applicationName}"

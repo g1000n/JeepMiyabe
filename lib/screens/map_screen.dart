@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart'; 
 import 'dart:collection';
 import 'package:collection/collection.dart';
+import 'package:flutter/scheduler.dart';
 
 // --- Imports for Extracted and External Logic ---
+// NOTE: These files must exist in your project, even if as simple mocks.
 import '../jeepney_network_data.dart'; // allNodes, jeepneyNetwork, uniqueNodeNames
 import '../graph_models.dart'; // Node, Edge
 import '../geo_utils.dart'; // calculateStaggeredPoints
@@ -13,14 +16,14 @@ import '../widgets/route_info_bubble.dart';
 import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
 import '../widgets/map_selection_header.dart';
-import '../widgets/route_details_sheet.dart'; // <-- Used to display disclaimer
+import '../widgets/route_details_sheet.dart'; 
 import '../widgets/instruction_tile.dart';
-import 'package:flutter/scheduler.dart';
+
 
 // --- Supabase/Auth/UUID (kept for type definitions/API calls) ---
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // For location icon
 
-// NOTE: This client is only needed if other files need it, but it's okay to keep here.
 final supabase = Supabase.instance.client;
 
 // Global state variables for the overlays
@@ -31,11 +34,11 @@ bool _showStepOverlay = false;
 bool _isConfirmed = false;
 bool _isFavoriteTo = false;
 
-// --- COLOR CONSTANTS (Assuming a central location for these in a real app) ---
+// --- COLOR CONSTANTS ---
 const Color kPrimaryColor = Color(0xFFE4572E);
 const Color kHeaderColor = Color(0xFFFFFFFF);
+const Color kLocationButtonColor = Color(0xFF007AFF); // A nice blue for location
 
-// 🌟 NEW CLASS: Model to pass pre-set destination data from other pages (like Favorites)
 class PreSetDestination {
   final String name;
   final double latitude;
@@ -44,7 +47,6 @@ class PreSetDestination {
   PreSetDestination(
       {required this.name, required this.latitude, required this.longitude});
 
-  // 🏆 CRITICAL FIX: Overriding == and hashCode to enable proper comparison 🏆
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -58,7 +60,7 @@ class PreSetDestination {
   int get hashCode => name.hashCode ^ latitude.hashCode ^ longitude.hashCode;
 }
 
-// --- DISCLAIMER CONSTANT (Added as requested) ---
+// --- DISCLAIMER CONSTANT ---
 const String kRouteDisclaimer =
     "Disclaimer: Routes prioritize the shortest mathematical cost (time/distance). This may suggest a path with transfers over a direct single-jeep route if the overall calculated cost is lower. Always confirm routes locally, as direct options may exist that are not shown here.";
 // ---------------------------------------------------------------------------
@@ -68,7 +70,6 @@ class MapScreen extends StatefulWidget {
   final double initialLongitude;
   final double initialZoom;
 
-  // 🌟 NEW FIELD: Accepts pre-set destination from Favorites Page 🌟
   final PreSetDestination? toPlace;
 
   const MapScreen({
@@ -76,7 +77,7 @@ class MapScreen extends StatefulWidget {
     this.initialLatitude = 15.1466,
     this.initialLongitude = 120.5960,
     this.initialZoom = 13.5,
-    this.toPlace, // Initialize new field
+    this.toPlace, 
   });
 
   @override
@@ -94,14 +95,15 @@ class _MapScreenState extends State<MapScreen> {
   List<RouteSegment> _currentRoute = [];
   bool _isSearching = false;
   bool _isSelectingPoints = false;
+  bool _isLocating = false; // Loading state for geolocator
 
   // 🛑 MAP BOUNDARY CONSTRAINTS 🛑
   static final LatLngBounds _cameraBounds = LatLngBounds(
     southwest: const LatLng(15.05, 120.50),
     northeast: const LatLng(15.25, 120.70),
   );
-  static const double _minZoomLevel = 12.0;
-  static const double _maxZoomLevel = 18.0;
+  static const double _minZoomLevel = 13.5;
+  static const double _maxZoomLevel = 20.0;
 
   // --- COMPUTED PROPERTIES ---
   double get _totalTime =>
@@ -113,45 +115,102 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _loadNetworkVisualization();
-
-    // 🛑 REMOVED: Initial setup for toPlace moved to didChangeDependencies
-    // to avoid the ScaffoldMessenger error.
   }
 
   @override
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // 🏆 FIX: This check now works because PreSetDestination implements ==
     if (widget.toPlace != null && widget.toPlace != oldWidget.toPlace) {
-      // Only run if the new destination is available AND is DIFFERENT from the old one.
       _setPreSetDestination(widget.toPlace!);
     }
   }
 
-  // 🌟 FIX: Use didChangeDependencies for logic that relies on 'context' 🌟
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // We check if it's the first time and a destination was passed.
     if (widget.toPlace != null && _endPoint == null) {
       _setPreSetDestination(widget.toPlace!);
     }
   }
 
-  void setExternalDestination(PreSetDestination destination) {
-    // Clear any existing route before setting the new destination
-    // This is crucial for restarting the flow.
-    _clearRoute();
+  // 🌟 MODIFIED FUNCTION: Now sets the fixed green marker at current location 🌟
+  Future<void> _setStartToCurrentLocation() async {
+    // 1. Set initial loading state and enter selection mode
+    setState(() {
+      _isLocating = true;
+      _isSelectingPoints = true; // Automatically enable selection mode
+      _currentRoute.clear(); // Clear any previous route attempts
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
+      _isConfirmed = false;
+      _isFavoriteTo = false;
+    });
 
-    // Call the existing logic to process and set the destination
+    try {
+      // Check for necessary permissions and services (same as before)
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied.');
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permissions are permanently denied. Please enable them in settings.');
+      }
+
+      // Get the current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high, 
+        timeLimit: const Duration(seconds: 10), 
+      );
+
+      final LatLng currentLocation = LatLng(position.latitude, position.longitude);
+
+      setState(() {
+        // 2. SET THE FIXED START POINT MARKER
+        _startPoint = currentLocation; 
+        _updateMarkers(); // Update markers to show the new start point
+
+        // 3. Move camera to the new location
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(currentLocation, 17.0), // Center and zoom in
+        );
+
+        // 4. Provide explicit user feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Start Location set to your current GPS position. Now tap map for Destination.')),
+        );
+      });
+
+    } catch (e) {
+      // Handle various exceptions from geolocator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Could not get location: ${e.toString().replaceAll("Exception: ", "")}')),
+      );
+    } finally {
+      // 5. Turn off loading state
+      setState(() {
+        _isLocating = false;
+      });
+    }
+  }
+
+  void setExternalDestination(PreSetDestination destination) {
+    _clearRoute();
     _setPreSetDestination(destination);
   }
 
   void _enablePointSelection() {
     setState(() {
-      // Clear all points when explicitly starting a new route selection
       _clearRoute();
       _isSelectingPoints = true;
     });
@@ -167,6 +226,7 @@ class _MapScreenState extends State<MapScreen> {
     _markers.removeWhere((m) => m.markerId.value.startsWith('USER_'));
     _currentRoute.clear();
 
+    // Mock markers from network data
     for (var node in allNodes.values) {
       _markers.add(
         Marker(
@@ -181,6 +241,7 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
+    // Mock polylines from network data
     final Map<String, List<Edge>> sharedSegments = {};
     for (var edges in jeepneyNetwork.adjacencyList.values) {
       for (var edge in edges) {
@@ -217,7 +278,6 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {});
   }
 
-  /// 🎯 REFINED LOGIC: Handles all map taps (setting start, setting end, or clearing/restarting).
   void _onMapTapped(LatLng tapPosition) {
     if (!_isSelectingPoints || _isSearching) return;
 
@@ -249,7 +309,6 @@ class _MapScreenState extends State<MapScreen> {
       } else {
         // 4. Both set: Clear and set new start point (restarting the selection)
         _clearRoute();
-        // Since _clearRoute sets _isSelectingPoints to false, we immediately re-enable it.
         _isSelectingPoints = true;
         _startPoint = tapPosition; // Start new selection immediately
         ScaffoldMessenger.of(context).showSnackBar(
@@ -264,6 +323,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _updateMarkers() {
+    // Remove existing user markers (Green Pin and Red Pin)
     _markers.removeWhere((m) => m.markerId.value.startsWith('USER_'));
 
     if (_startPoint != null) {
@@ -272,8 +332,9 @@ class _MapScreenState extends State<MapScreen> {
           markerId: const MarkerId('USER_START'),
           position: _startPoint!,
           infoWindow: const InfoWindow(title: 'Start Location'),
+          // This is the Green Pin marker
           icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), 
           zIndex: 10,
           alpha: 1.0,
         ),
@@ -294,33 +355,22 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _saveRouteHistory() async {
-    // 1. Get current user's ID
     final String? userId = supabase.auth.currentUser?.id;
-    if (userId == null) {
-      debugPrint('🛑 HISTORY SAVE FAILED: User is not authenticated.');
-      // Must be logged in to save history
+    if (userId == null || _currentRoute.isEmpty || _startPoint == null || _endPoint == null) {
+      debugPrint('🛑 HISTORY SAVE FAILED: User not authenticated or data incomplete.');
       return;
     }
 
-    // 2. Ensure essential data exists before proceeding
-    // (Assuming _currentRoute, _startPoint, and _endPoint are state variables)
-    if (_currentRoute.isEmpty || _startPoint == null || _endPoint == null) {
-      debugPrint('🛑 HISTORY SAVE FAILED: Route data is incomplete.');
-      return;
-    }
-
-    // 3. Convert the list of RouteSegments using the toJson() method.
-    // This is critical for the jsonb column.
     final List<Map<String, dynamic>> routeJsonList =
         _currentRoute.map((segment) => segment.toJson()).toList();
 
-    // 4. Prepare start/end point names (using coordinates as a fallback)
     final String startString =
         'Lat: ${_startPoint!.latitude.toStringAsFixed(4)}, Lng: ${_startPoint!.longitude.toStringAsFixed(4)}';
     final String endString =
         'Lat: ${_endPoint!.latitude.toStringAsFixed(4)}, Lng: ${_endPoint!.longitude.toStringAsFixed(4)}';
 
     try {
+      // NOTE: This is mock Supabase logic as the actual table structure is unknown
       await supabase.from('route_history').insert({
         'user_id': userId,
         'start_point': startString,
@@ -330,10 +380,8 @@ class _MapScreenState extends State<MapScreen> {
 
       debugPrint('✅ Route history saved successfully for user $userId.');
     } on PostgrestException catch (e) {
-      // This logs database errors (like incorrect column names, missing constraints)
       debugPrint('🛑 SUPABASE ERROR saving history: ${e.message}');
     } catch (e) {
-      // This logs general programming errors
       debugPrint('🛑 GENERAL EXCEPTION saving route history: $e');
     }
   }
@@ -434,7 +482,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // 🌟 HELPER FUNCTION: Unifies logic for setting end point (from search or favorites) 🌟
   void _setPreSetDestination(PreSetDestination toPlace) {
     final LatLng newPosition = LatLng(toPlace.latitude, toPlace.longitude);
 
@@ -444,7 +491,6 @@ class _MapScreenState extends State<MapScreen> {
 
     setState(() {
       _endPoint = newPosition;
-      // Clear start point if the user somehow searched for a location already set as start
       if (_startPoint == newPosition) {
         _startPoint = null;
       }
@@ -452,27 +498,23 @@ class _MapScreenState extends State<MapScreen> {
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
       _updateMarkers();
 
-      // Crucial: Manually enable the selection mode to allow the user to tap for the start point
       _isSelectingPoints = true;
       _isConfirmed = false;
       _isFavoriteTo = false;
     });
 
-    // 🏆 FIX: Schedule the SnackBar call for after the current frame is built 🏆
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted)
-        return; // Always check mounted if using async/post-frame callbacks
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Destination set to: "${toPlace.name}". Tap the map to set your Start Location.'),
+              'Destination set to: "${toPlace.name}". Now, set your Start Location (tap map or use the My Location button).'),
           duration: const Duration(milliseconds: 3000),
         ),
       );
     });
   }
 
-  /// 🎯 EDITED LOGIC: Now uses the helper function to set the End Point.
   void onSearchCallback(String query) {
     final String lowercaseQuery = query.toLowerCase();
 
@@ -487,7 +529,6 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
-    // 🌟 Use the new helper function 🌟
     _setPreSetDestination(PreSetDestination(
       name: matchingNode.name,
       latitude: matchingNode.position.latitude,
@@ -495,7 +536,6 @@ class _MapScreenState extends State<MapScreen> {
     ));
   }
 
-  // Uses the extracted helper function and manages parent state updates via callback
   void _showInstructionsSheet() {
     showRouteDetailsSheet(
       context: context,
@@ -504,8 +544,7 @@ class _MapScreenState extends State<MapScreen> {
       totalTime: _totalTime,
       totalDistance: _totalDistance,
       isFavoriteTo: _isFavoriteTo,
-      // 🌟 ADDED DISCLAIMER TEXT HERE 🌟
-      disclaimerText: kRouteDisclaimer, 
+      disclaimerText: kRouteDisclaimer,
       onFavoriteToggle: (isFavorite) {
         setState(() {
           _isFavoriteTo = isFavorite;
@@ -521,7 +560,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Called from the step overlay to show the full sheet again
   void _showFullInstructions() {
     setState(() {
       _showStepOverlay = false;
@@ -549,7 +587,6 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     final primaryColor = kPrimaryColor;
 
-    // Use the parameters passed into the widget to create the CameraPosition
     final CameraPosition initialCameraPosition = CameraPosition(
       target: LatLng(widget.initialLatitude, widget.initialLongitude),
       zoom: widget.initialZoom,
@@ -565,10 +602,9 @@ class _MapScreenState extends State<MapScreen> {
             onMapCreated: (controller) => _mapController = controller,
             markers: _markers,
             polylines: _polylines,
-            // Tap logic is now refined to handle Start-first or End-first selection
             onTap: _onMapTapped,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
+            myLocationEnabled: true, // This enables the dynamic blue dot
+            myLocationButtonEnabled: false, // We use a custom button
             padding: EdgeInsets.only(
                 bottom: 100.0, top: _isSelectingPoints ? 150.0 : 0),
             zoomControlsEnabled: false,
@@ -584,7 +620,6 @@ class _MapScreenState extends State<MapScreen> {
               top: 0,
               left: 0,
               right: 0,
-              // Use the new extracted MapSelectionHeader widget
               child: MapSelectionHeader(
                 startPoint: _startPoint,
                 endPoint: _endPoint,
@@ -596,12 +631,10 @@ class _MapScreenState extends State<MapScreen> {
               left: 20,
               right: 20,
               child: SafeArea(
-                // Use the new extracted MapSearchHeader widget
                 child: MapSearchHeader(
                   primaryColor: primaryColor,
                   nodeNames: uniqueNodeNames,
-                  onSearch:
-                      onSearchCallback, // This now triggers End Point selection
+                  onSearch: onSearchCallback, 
                 ),
               ),
             ),
@@ -613,7 +646,6 @@ class _MapScreenState extends State<MapScreen> {
             Positioned(
               top: 350,
               left: MediaQuery.of(context).size.width / 2 - 80,
-              // Use the new extracted RouteInfoBubble widget
               child: RouteInfoBubble(
                 totalTime: _totalTime,
                 totalDistance: _totalDistance,
@@ -624,7 +656,6 @@ class _MapScreenState extends State<MapScreen> {
           Positioned(
             bottom: 110,
             right: 20,
-            // Use the new extracted RouteActionButton widget
             child: RouteActionButton(
               primaryColor: primaryColor,
               isSearching: _isSearching,
@@ -635,12 +666,31 @@ class _MapScreenState extends State<MapScreen> {
               enableSelection: _enablePointSelection,
             ),
           ),
+          
+          // 🌟 "My Location" Button (Sets the Start Point marker and fills "From:") 🌟
+          Positioned(
+            bottom: 30, // Positioned above the Route Details FAB
+            right: 20,
+            child: FloatingActionButton(
+              heroTag: 'my_location_fab',
+              onPressed: _isLocating ? null : _setStartToCurrentLocation, // CALLS NEW FUNCTION
+              backgroundColor: _isLocating ? Colors.grey : kLocationButtonColor,
+              foregroundColor: Colors.white,
+              child: _isLocating 
+                  ? const SizedBox(
+                      width: 24, 
+                      height: 24, 
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(FontAwesomeIcons.locationDot),
+            ),
+          ),
 
-          // NEW FIX: Button to bring back the full instructions sheet
+
+          // Button to bring back the full instructions sheet
           if (_isConfirmed && _currentRoute.isNotEmpty && !_showStepOverlay)
             Positioned(
-              bottom: 30, // Position it to the right
-              right: 20,
+              bottom: 30, 
+              left: 20, // Move this button to the left to avoid overlap with My Location FAB
               child: FloatingActionButton.extended(
                 heroTag: 'show_instructions_sheet',
                 onPressed: _showInstructionsSheet,
@@ -656,7 +706,7 @@ class _MapScreenState extends State<MapScreen> {
             Positioned(
               bottom: 30,
               left: 20,
-              right: 20,
+              right: 90, // Adjusted to make space for the My Location FAB
               child: SafeArea(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -713,7 +763,6 @@ class _MapScreenState extends State<MapScreen> {
                             fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      // Use the new InstructionTile widget
                       InstructionTile(
                           segment: _currentRoute[_currentStepIndex]),
                       const SizedBox(height: 12),
