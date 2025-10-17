@@ -42,7 +42,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
     // Call the function from favorite_place.dart
     try {
-      // This line was previously causing an error if the import or function was missing.
       // NOTE: This assumes 'fetchFavoritesForUser' is defined in favorite_place.dart
       return await fetchFavoritesForUser(_userId);
     } catch (e) {
@@ -60,34 +59,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
   }
 
-  /// 🌟 UPDATED HANDLER: Passes the favorite location as the destination (`toPlace`).
+  /// 🌟 FIXED HANDLER: Closes this page and sends the destination data back 🌟
   void _onFavoriteTapped(FavoritePlace favorite) {
-    // Navigate to the MapScreen and pass the favorite's coordinates
-    final newMapScreen = MapScreen(
-      // Set initial map focus near the favorite location
-      initialLatitude: favorite.latitude,
-      initialLongitude: favorite.longitude,
-      initialZoom: 17.0,
-      
-      // 🌟 CRITICAL: Pass the favorite as the pre-set destination 🌟
-      toPlace: PreSetDestination(
-        name: favorite.name,
-        latitude: favorite.latitude,
-        longitude: favorite.longitude,
-      ),
+    // 1. Create the PreSetDestination object
+    final destination = PreSetDestination(
+      name: favorite.name,
+      latitude: favorite.latitude,
+      longitude: favorite.longitude,
     );
     
-    // NOTE on Navigation: 
-    // If MapScreen is part of a BottomNavigationBar, 
-    // the true fix is to use Navigator.pop() and pass the 'toPlace' back 
-    // to the parent widget which then switches the tab and passes data.
-    // However, using pushReplacement here is a common way to transition 
-    // directly to a full-screen map view.
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => newMapScreen,
-      ),
-    );
+    // 2. Use Navigator.pop() to return to the DashboardPage (which pushed this).
+    // The result of the pop operation is the destination object.
+    // The DashboardPage must handle this result.
+    Navigator.of(context).pop(destination);
   }
 
   @override
@@ -97,7 +81,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         title: const Text('Your Favorite Places',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: kPrimaryColor,
-        // Assuming this is a page that should be navigated back from
+        // This ensures a back button is available to return to the Dashboard.
         automaticallyImplyLeading: true, 
         actions: [
           IconButton(

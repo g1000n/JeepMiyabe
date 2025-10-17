@@ -36,21 +36,36 @@ const Color kPrimaryColor = Color(0xFFE4572E);
 const Color kHeaderColor = Color(0xFFFFFFFF);
 
 // 🌟 NEW CLASS: Model to pass pre-set destination data from other pages (like Favorites)
+// 🌟 NEW CLASS: Model to pass pre-set destination data from other pages (like Favorites)
 class PreSetDestination {
   final String name;
   final double latitude;
   final double longitude;
 
-  PreSetDestination({required this.name, required this.latitude, required this.longitude});
-}
-// ---------------------------------------------------------------------------
+  PreSetDestination(
+      {required this.name, required this.latitude, required this.longitude});
 
+  // 🏆 CRITICAL FIX: Overriding == and hashCode to enable proper comparison 🏆
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PreSetDestination &&
+        other.name == name &&
+        other.latitude == latitude &&
+        other.longitude == longitude;
+  }
+
+  @override
+  int get hashCode => name.hashCode ^ latitude.hashCode ^ longitude.hashCode;
+}
+
+// ---------------------------------------------------------------------------
 
 class MapScreen extends StatefulWidget {
   final double initialLatitude;
   final double initialLongitude;
   final double initialZoom;
-  
+
   // 🌟 NEW FIELD: Accepts pre-set destination from Favorites Page 🌟
   final PreSetDestination? toPlace;
 
@@ -96,26 +111,46 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _loadNetworkVisualization();
-    
-    // 🛑 REMOVED: Initial setup for toPlace moved to didChangeDependencies 
+
+    // 🛑 REMOVED: Initial setup for toPlace moved to didChangeDependencies
     // to avoid the ScaffoldMessenger error.
   }
-  
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 🏆 FIX: This check now works because PreSetDestination implements ==
+    if (widget.toPlace != null && widget.toPlace != oldWidget.toPlace) {
+      // Only run if the new destination is available AND is DIFFERENT from the old one.
+      _setPreSetDestination(widget.toPlace!);
+    }
+  }
+
   // 🌟 FIX: Use didChangeDependencies for logic that relies on 'context' 🌟
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // We check if it's the first time and a destination was passed.
     if (widget.toPlace != null && _endPoint == null) {
       _setPreSetDestination(widget.toPlace!);
     }
   }
 
+  void setExternalDestination(PreSetDestination destination) {
+  // Clear any existing route before setting the new destination
+  // This is crucial for restarting the flow.
+  _clearRoute(); 
+  
+  // Call the existing logic to process and set the destination
+  _setPreSetDestination(destination); 
+}
+
   void _enablePointSelection() {
     setState(() {
       // Clear all points when explicitly starting a new route selection
-      _clearRoute(); 
+      _clearRoute();
       _isSelectingPoints = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -213,11 +248,12 @@ class _MapScreenState extends State<MapScreen> {
         // 4. Both set: Clear and set new start point (restarting the selection)
         _clearRoute();
         // Since _clearRoute sets _isSelectingPoints to false, we immediately re-enable it.
-        _isSelectingPoints = true; 
+        _isSelectingPoints = true;
         _startPoint = tapPosition; // Start new selection immediately
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Route cleared. Start point set. Tap for Destination.')),
+              content:
+                  Text('Route cleared. Start point set. Tap for Destination.')),
         );
       }
 
@@ -350,9 +386,9 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-  
+
   // 🌟 HELPER FUNCTION: Unifies logic for setting end point (from search or favorites) 🌟
-void _setPreSetDestination(PreSetDestination toPlace) {
+  void _setPreSetDestination(PreSetDestination toPlace) {
     final LatLng newPosition = LatLng(toPlace.latitude, toPlace.longitude);
 
     _mapController?.animateCamera(
@@ -370,18 +406,19 @@ void _setPreSetDestination(PreSetDestination toPlace) {
       _updateMarkers();
 
       // Crucial: Manually enable the selection mode to allow the user to tap for the start point
-      _isSelectingPoints = true; 
+      _isSelectingPoints = true;
       _isConfirmed = false;
       _isFavoriteTo = false;
     });
 
     // 🏆 FIX: Schedule the SnackBar call for after the current frame is built 🏆
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return; // Always check mounted if using async/post-frame callbacks
+      if (!mounted)
+        return; // Always check mounted if using async/post-frame callbacks
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Destination set to: "${toPlace.name}". Tap the map to set your Start Location.'),
+          content: Text(
+              'Destination set to: "${toPlace.name}". Tap the map to set your Start Location.'),
           duration: const Duration(milliseconds: 3000),
         ),
       );
@@ -479,7 +516,7 @@ void _setPreSetDestination(PreSetDestination toPlace) {
             markers: _markers,
             polylines: _polylines,
             // Tap logic is now refined to handle Start-first or End-first selection
-            onTap: _onMapTapped, 
+            onTap: _onMapTapped,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(
@@ -513,13 +550,16 @@ void _setPreSetDestination(PreSetDestination toPlace) {
                 child: MapSearchHeader(
                   primaryColor: primaryColor,
                   nodeNames: uniqueNodeNames,
-                  onSearch: onSearchCallback, // This now triggers End Point selection
+                  onSearch:
+                      onSearchCallback, // This now triggers End Point selection
                 ),
               ),
             ),
 
           // --- ROUTE INFO BUBBLE ---
-          if (_currentRoute.isNotEmpty && !_isSelectingPoints && !_showStepOverlay)
+          if (_currentRoute.isNotEmpty &&
+              !_isSelectingPoints &&
+              !_showStepOverlay)
             Positioned(
               top: 350,
               left: MediaQuery.of(context).size.width / 2 - 80,
@@ -545,7 +585,7 @@ void _setPreSetDestination(PreSetDestination toPlace) {
               enableSelection: _enablePointSelection,
             ),
           ),
-          
+
           // NEW FIX: Button to bring back the full instructions sheet
           if (_isConfirmed && _currentRoute.isNotEmpty && !_showStepOverlay)
             Positioned(
@@ -624,7 +664,8 @@ void _setPreSetDestination(PreSetDestination toPlace) {
                       ),
                       const SizedBox(height: 8),
                       // Use the new InstructionTile widget
-                      InstructionTile(segment: _currentRoute[_currentStepIndex]),
+                      InstructionTile(
+                          segment: _currentRoute[_currentStepIndex]),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -654,9 +695,7 @@ void _setPreSetDestination(PreSetDestination toPlace) {
                               if (_currentStepIndex == _currentRoute.length - 1)
                                 ElevatedButton(
                                   onPressed: () {
-                                    setState(() {
-                                      _showStepOverlay = false;
-                                    });
+                                    _clearRoute();
                                   },
                                   child: const Text('Done'),
                                 ),

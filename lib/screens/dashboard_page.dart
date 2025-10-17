@@ -4,6 +4,9 @@ import '../utils/auth_storage.dart'; // Adjust path to your AuthStorage file
 import 'profile_page.dart';
 import 'map_screen.dart';
 import 'favorites_page.dart';
+// Note: We need PreSetDestination for the state variable
+import 'map_screen.dart' show MapScreen, PreSetDestination; 
+
 
 // --- NEW IMPORTS FOR EXTRACTED WIDGETS ---
 import '../widgets/about_us_page.dart';
@@ -27,6 +30,10 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage>
     with SingleTickerProviderStateMixin {
+  
+  // 🌟 NEW STATE VARIABLE: Holds the destination selected from FavoritesPage
+  PreSetDestination? _favoriteDestination;
+  
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
 
@@ -36,6 +43,7 @@ class _DashboardPageState extends State<DashboardPage>
   late AnimationController _animationController;
   late Animation<double> _animation;
 
+  // This MUST be late final to be populated dynamically in initState
   late final List<Widget> _pages;
 
   // Dynamic elevations to hide shadows when sheet is open
@@ -46,6 +54,7 @@ class _DashboardPageState extends State<DashboardPage>
   @override
   void initState() {
     super.initState();
+    
     // Initialize AnimationController for the FAB icon
     _animationController = AnimationController(
       vsync: this,
@@ -54,12 +63,15 @@ class _DashboardPageState extends State<DashboardPage>
     // Defines the rotation range (0.0 to 0.5 for 180 degrees)
     _animation = Tween<double>(begin: 0.0, end: 0.5).animate(_animationController);
 
-    // Now uses the imported AboutUsPage
+    // 🛑 The _pages list is now initialized in the build method 
+    // or as a getter, as it depends on mutable state (_favoriteDestination).
+    // For simplicity, we'll keep the list structure here and update the MapScreen widget later.
     _pages = [
-      const MapScreen(), // Index 0: Home view (MapScreen)
+      MapScreen(toPlace: _favoriteDestination), // Index 0: MapScreen - Updated in build
       const AboutUsPage(), // Index 1: About Us (Extracted)
       const SizedBox.shrink(), // Placeholder for FAB (Index 2)
-      const FavoritesPage(), // Index 3: Favorites
+      // The FavoritesPage must be navigated to directly to handle the result
+      const Center(child: Text("Favorites Tab Content Placeholder")), // Index 3: Placeholder
       ProfilePage(onLogout: () => _logout(context)), // Index 4: ProfilePage
     ];
   }
@@ -73,6 +85,63 @@ class _DashboardPageState extends State<DashboardPage>
     super.dispose();
   }
 
+  // UPDATED: Logic to handle navigation to the FavoritesPage 
+  // and process the returned destination.
+  void _onItemTapped(int index) async {
+    if (index == 2) return; // FAB is index 2
+
+    // Close the bottom sheet if another tab is selected
+    if (_isJeepListSheetOpen) {
+      _animationController.reverse();
+      _bottomSheetController?.close();
+      setState(() {
+        _isJeepListSheetOpen = false;
+        _bottomSheetController = null;
+      });
+    }
+
+    // 🌟 CRITICAL FIX: Handle navigation to FavoritesPage (Index 3) 🌟
+    if (index == 3) {
+      // Temporarily switch the selected index to show the tab is active
+      setState(() => _selectedIndex = index);
+      
+      // Push FavoritesPage and wait for a result (the selected PreSetDestination)
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          // Pushes the FavoritesPage as a full screen route
+          builder: (context) => const FavoritesPage(), 
+        ),
+      );
+
+      // Check if a favorite destination was returned
+      if (result != null && result is PreSetDestination) {
+        setState(() {
+          // 1. Store the destination
+          _favoriteDestination = result;
+          // 2. Switch to MapScreen tab (index 0)
+          _selectedIndex = 0; 
+        });
+        // 3. Navigate the PageView to MapScreen
+        _pageController.jumpToPage(0);
+        
+        // Return here to prevent the default page navigation below
+        return; 
+      } else {
+        // If the user backed out without selecting a favorite, 
+        // return to the previous page (MapScreen index 0 usually)
+        setState(() => _selectedIndex = _pageController.page?.round() ?? 0);
+        return;
+      }
+    }
+    
+    // Default navigation for other tabs
+    setState(() => _selectedIndex = index);
+    _pageController.animateToPage(index,
+        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+  }
+
+  // ... (rest of _onFabTapped and _buildJeepListSheetContent remain unchanged) ...
   // UPDATED: Uses Scaffold.of().showBottomSheet for a PERSISTENT sheet
   void _onFabTapped(BuildContext fabContext) {
     final ScaffoldState scaffoldState = Scaffold.of(fabContext);
@@ -191,23 +260,8 @@ class _DashboardPageState extends State<DashboardPage>
       ),
     );
   }
+  // ... (end of unchanged section) ...
 
-  void _onItemTapped(int index) {
-    if (index == 2) return;
-    setState(() => _selectedIndex = index);
-    _pageController.animateToPage(index,
-        duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-
-    // Close the bottom sheet if another tab is selected
-    if (_isJeepListSheetOpen) {
-      _animationController.reverse();
-      _bottomSheetController?.close();
-      setState(() {
-        _isJeepListSheetOpen = false;
-        _bottomSheetController = null;
-      });
-    }
-  }
 
   Widget _buildNavItem(
       {required int index, required IconData icon, required String label}) {
@@ -266,13 +320,23 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
+    // 🌟 RE-CREATE the pages list in build to ensure MapScreen gets the updated state 🌟
+    final List<Widget> pages = [
+      MapScreen(toPlace: _favoriteDestination), // Index 0: MapScreen
+      const AboutUsPage(), // Index 1: About Us 
+      const SizedBox.shrink(), // Placeholder for FAB (Index 2)
+      // Since FavoritesPage is PUSHED, this can be its static content or a placeholder
+      const Center(child: Text('Favorites Tab - Use FAB/Search to navigate.')), // Index 3: Favorites
+      ProfilePage(onLogout: () => _logout(context)), // Index 4: ProfilePage
+    ];
+    
     return Scaffold(
       body: SafeArea(
         child: PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (index) => setState(() => _selectedIndex = index),
-          children: _pages,
+          children: pages, // Use the dynamically created list
         ),
       ),
       backgroundColor: kBackgroundColor,
