@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../favorite_place.dart'; // Import the model and functions
-import 'map_screen.dart'; // Import MapScreen to navigate when selecting a favorite
+// Ensure MapScreen is imported so we can access MapScreen and PreSetDestination
+import 'map_screen.dart'; 
 
 // --- CONSTANTS ---
 const Color kPrimaryColor = Color(0xFFE4572E);
@@ -42,6 +43,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     // Call the function from favorite_place.dart
     try {
       // This line was previously causing an error if the import or function was missing.
+      // NOTE: This assumes 'fetchFavoritesForUser' is defined in favorite_place.dart
       return await fetchFavoritesForUser(_userId);
     } catch (e) {
       // If there is an error during fetch, return empty list and print error
@@ -58,16 +60,32 @@ class _FavoritesPageState extends State<FavoritesPage> {
     });
   }
 
-  // Handler for when a favorite place is tapped
+  /// 🌟 UPDATED HANDLER: Passes the favorite location as the destination (`toPlace`).
   void _onFavoriteTapped(FavoritePlace favorite) {
     // Navigate to the MapScreen and pass the favorite's coordinates
-    Navigator.of(context).push(
+    final newMapScreen = MapScreen(
+      // Set initial map focus near the favorite location
+      initialLatitude: favorite.latitude,
+      initialLongitude: favorite.longitude,
+      initialZoom: 17.0,
+      
+      // 🌟 CRITICAL: Pass the favorite as the pre-set destination 🌟
+      toPlace: PreSetDestination(
+        name: favorite.name,
+        latitude: favorite.latitude,
+        longitude: favorite.longitude,
+      ),
+    );
+    
+    // NOTE on Navigation: 
+    // If MapScreen is part of a BottomNavigationBar, 
+    // the true fix is to use Navigator.pop() and pass the 'toPlace' back 
+    // to the parent widget which then switches the tab and passes data.
+    // However, using pushReplacement here is a common way to transition 
+    // directly to a full-screen map view.
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => MapScreen(
-          initialLatitude: favorite.latitude,
-          initialLongitude: favorite.longitude,
-          initialZoom: 17.0,
-        ),
+        builder: (context) => newMapScreen,
       ),
     );
   }
@@ -79,7 +97,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
         title: const Text('Your Favorite Places',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: kPrimaryColor,
-        automaticallyImplyLeading: false,
+        // Assuming this is a page that should be navigated back from
+        automaticallyImplyLeading: true, 
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -199,7 +218,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
               // 2. Perform delete operation
               try {
-                // Call the function from favorite_place.dart
+                // NOTE: This assumes 'deleteFavoriteFromBackendById' is defined in favorite_place.dart
                 await deleteFavoriteFromBackendById(favorite.id, _userId);
 
                 // 3. Show success message and refresh UI

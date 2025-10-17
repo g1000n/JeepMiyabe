@@ -1,103 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:jeepmiyabe/favorite_place.dart'; // Contains service functions
 import 'dart:collection';
-import '../jeepney_network_data.dart';
-import '../graph_models.dart';
-import '../geo_utils.dart';
-import '../route_segment.dart';
-import '../route_finder.dart';
+import 'package:collection/collection.dart';
+
+// --- Imports for Extracted and External Logic ---
+import '../jeepney_network_data.dart'; // allNodes, jeepneyNetwork, uniqueNodeNames
+import '../graph_models.dart'; // Node, Edge
+import '../geo_utils.dart'; // calculateStaggeredPoints
+import '../route_segment.dart'; // RouteSegment, SegmentType
+import '../route_finder.dart'; // RouteFinder
 import '../widgets/route_info_bubble.dart';
 import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
+import '../widgets/map_selection_header.dart';
+import '../widgets/route_details_sheet.dart';
+import '../widgets/instruction_tile.dart';
+import 'package:flutter/scheduler.dart';
+
+// --- Supabase/Auth/UUID (kept for type definitions/API calls) ---
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:jeepmiyabe/auth_service.dart';
-import 'package:jeepmiyabe/auth_service.dart';
-import 'package:uuid/uuid.dart';
-import 'package:jeepmiyabe/auth_service.dart';
-import '../jeepney_network_data.dart';
-import 'package:collection/collection.dart';
-import 'package:jeepmiyabe/jeepney_network_data.dart';
 
-// NOTE: You must initialize Supabase in your main.dart for this to work.
-// Since you provided the code snippet, I'll keep the variable here but
-// it will assume proper initialization in the main app.
-// Assumes the following functions exist globally or in AuthService:
-// getCurrentUserId(), saveFavoriteToBackend(), isFavoriteInBackend(), deleteFavoriteFromBackend()
+// NOTE: This client is only needed if other files need it, but it's okay to keep here.
 final supabase = Supabase.instance.client;
-final Uuid _uuid = const Uuid(); // <--- NEW: Uuid generator
 
-// Global state variables for the overlays (static/top-level variables)
+// Global state variables for the overlays
 int _currentStepIndex = 0;
 bool _showStepOverlay = false;
 
-// --- NEW STATE FOR CONFIRMATION & FAVORITES ---
+// --- STATE FOR CONFIRMATION & FAVORITES ---
 bool _isConfirmed = false;
 bool _isFavoriteTo = false;
 
-// --- COLOR CONSTANTS ADDED HERE ---
-const Color kPrimaryColor = Color(0xFFE4572E); // App's primary orange-red
-const Color kBackgroundColor =
-    Color(0xFFFDF8E2); // Light background color (Pale Yellow/Off-White)
-const Color kHeaderColor = Color(0xFFFFFFFF); // White for the selection header
+// --- COLOR CONSTANTS (Assuming a central location for these in a real app) ---
+const Color kPrimaryColor = Color(0xFFE4572E);
+const Color kHeaderColor = Color(0xFFFFFFFF);
 
-// --- START Instruction Tile ---
-// Assuming SegmentType and RouteSegment are correctly defined in route_segment.dart
-class InstructionTile extends StatelessWidget {
-  final RouteSegment segment;
-  const InstructionTile({super.key, required this.segment});
+// 🌟 NEW CLASS: Model to pass pre-set destination data from other pages (like Favorites)
+class PreSetDestination {
+  final String name;
+  final double latitude;
+  final double longitude;
 
-  @override
-  Widget build(BuildContext context) {
-    IconData icon;
-    Color iconColor;
-
-    switch (segment.type) {
-      case SegmentType.WALK:
-        icon = Icons.directions_walk;
-        iconColor = Colors.grey.shade600;
-        break;
-      case SegmentType.JEEPNEY:
-        icon = Icons.directions_bus_filled;
-        iconColor = segment.color;
-        break;
-      case SegmentType.TRANSFER:
-        icon = Icons.swap_horiz;
-        iconColor = kPrimaryColor;
-        break;
-    }
-
-    return ListTile(
-      leading: Icon(icon, color: iconColor, size: 30),
-      title: Text(
-        segment.description,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: segment.type == SegmentType.JEEPNEY
-              ? Colors.black
-              : Colors.black87,
-        ),
-      ),
-      subtitle: Text(
-        '${segment.durationMin.toStringAsFixed(0)} min / ${segment.distanceKm.toStringAsFixed(2)} km',
-        style: TextStyle(color: Colors.grey.shade700),
-      ),
-    );
-  }
+  PreSetDestination({required this.name, required this.latitude, required this.longitude});
 }
-// --- END Instruction Tile ---
+// ---------------------------------------------------------------------------
+
 
 class MapScreen extends StatefulWidget {
   final double initialLatitude;
   final double initialLongitude;
   final double initialZoom;
+  
+  // 🌟 NEW FIELD: Accepts pre-set destination from Favorites Page 🌟
+  final PreSetDestination? toPlace;
 
   const MapScreen({
     super.key,
-    // Provide default values here, like the original hardcoded ones
     this.initialLatitude = 15.1466,
     this.initialLongitude = 120.5960,
     this.initialZoom = 13.5,
+    this.toPlace, // Initialize new field
   });
 
   @override
@@ -108,7 +70,6 @@ class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   final Set<Polyline> _polylines = LinkedHashSet();
   final Set<Marker> _markers = LinkedHashSet();
-  // Assuming RouteFinder is correctly implemented
   final RouteFinder _routeFinder = RouteFinder();
 
   LatLng? _startPoint;
@@ -117,16 +78,15 @@ class _MapScreenState extends State<MapScreen> {
   bool _isSearching = false;
   bool _isSelectingPoints = false;
 
-  // 🛑 MAP BOUNDARY CONSTRAINTS (Adjusted for tighter view) 🛑
+  // 🛑 MAP BOUNDARY CONSTRAINTS 🛑
   static final LatLngBounds _cameraBounds = LatLngBounds(
     southwest: const LatLng(15.05, 120.50),
     northeast: const LatLng(15.25, 120.70),
   );
-  // Increased Min Zoom Level (tighter zoom-out limit)
   static const double _minZoomLevel = 12.0;
   static const double _maxZoomLevel = 18.0;
 
-  // --- COMPUTED PROPERTIES (Used for the UI components) ---
+  // --- COMPUTED PROPERTIES ---
   double get _totalTime =>
       _currentRoute.fold(0.0, (sum, item) => sum + item.durationMin);
   double get _totalDistance =>
@@ -136,19 +96,28 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _loadNetworkVisualization();
+    
+    // 🛑 REMOVED: Initial setup for toPlace moved to didChangeDependencies 
+    // to avoid the ScaffoldMessenger error.
+  }
+  
+  // 🌟 FIX: Use didChangeDependencies for logic that relies on 'context' 🌟
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // We check if it's the first time and a destination was passed.
+    if (widget.toPlace != null && _endPoint == null) {
+      _setPreSetDestination(widget.toPlace!);
+    }
   }
 
-  /// Enables the user to tap the map to set start and end points.
   void _enablePointSelection() {
     setState(() {
-      // If a route is already set, clear it first
-      if (_startPoint != null || _endPoint != null) {
-        _clearRoute(); // This sets _isSelectingPoints = false internally
-      }
-      // Then, enable the selection mode
+      // Clear all points when explicitly starting a new route selection
+      _clearRoute(); 
       _isSelectingPoints = true;
     });
-    // Show a hint
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text(
@@ -156,22 +125,17 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  /// Loads all nodes as markers and all route segments as faint polylines
   void _loadNetworkVisualization() {
     _polylines.clear();
-    _markers.removeWhere(
-        (m) => m.markerId.value.startsWith('USER_')); // Keep user markers only
+    _markers.removeWhere((m) => m.markerId.value.startsWith('USER_'));
     _currentRoute.clear();
 
-    // Add all permanent network nodes as small markers
-    // NOTE: This assumes 'allNodes' is accessible from '../jeepney_network_data.dart'
     for (var node in allNodes.values) {
       _markers.add(
         Marker(
           markerId: MarkerId(node.id),
           position: node.position,
           infoWindow: InfoWindow.noText,
-          // Use a simple tap handler here, the main map handler will determine what to do
           onTap: () => _onMapTapped(node.position),
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
@@ -180,9 +144,7 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
-    // Process edges to group shared segments for staggering
     final Map<String, List<Edge>> sharedSegments = {};
-    // NOTE: This assumes 'jeepneyNetwork' is accessible and has an 'adjacencyList'
     for (var edges in jeepneyNetwork.adjacencyList.values) {
       for (var edge in edges) {
         final key = '${edge.startNodeId}-${edge.endNodeId}';
@@ -191,15 +153,11 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     int polylineIndex = 0;
-    // Draw all segments, staggering them visually if they overlap
-    // NOTE: This assumes 'calculateStaggeredPoints' and 'Edge' are defined
     sharedSegments.forEach((key, edges) {
       final totalSegments = edges.length;
 
       for (int i = 0; i < totalSegments; i++) {
         final edge = edges[i];
-
-        // NOTE: Assumes calculateStaggeredPoints is defined in '../geo_utils.dart'
         final List<LatLng> staggeredPoints = calculateStaggeredPoints(
           edge.polylinePoints,
           i,
@@ -220,49 +178,50 @@ class _MapScreenState extends State<MapScreen> {
     });
 
     setState(() {});
-    debugPrint(
-        'Network Dashboard loaded: ${_markers.length} nodes and ${_polylines.length} route segments.');
   }
 
-  /// Handles map tap events to set start and end points for route finding.
+  /// 🎯 REFINED LOGIC: Handles all map taps (setting start, setting end, or clearing/restarting).
   void _onMapTapped(LatLng tapPosition) {
     if (!_isSelectingPoints || _isSearching) return;
 
     setState(() {
-      if (_startPoint == null) {
+      _currentRoute.clear();
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
+      _isConfirmed = false;
+      _isFavoriteTo = false;
+
+      if (_startPoint == null && _endPoint == null) {
+        // 1. Neither set: Set start point
         _startPoint = tapPosition;
-        _endPoint = null;
-        _currentRoute.clear();
-        _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
-        _updateMarkers();
-        _isConfirmed = false;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text(
-                  'Start point set (Green marker). Tap again for Destination.')),
+              content: Text('Start point set. Tap again for Destination.')),
         );
-      } else if (_endPoint == null) {
+      } else if (_startPoint != null && _endPoint == null) {
+        // 2. Start set, End NOT set: Set end point
         _endPoint = tapPosition;
-        _updateMarkers();
-        // The selection mode remains active until the route is confirmed/found
-        _isConfirmed = false;
-        _isFavoriteTo = false; // Reset favorite state
-        // SnackBar for user feedback
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Destination set (Red marker). Tap Confirm Route.')),
+          const SnackBar(content: Text('Destination set. Tap Confirm Route.')),
+        );
+      } else if (_startPoint == null && _endPoint != null) {
+        // 3. End set (via search/favorites), Start NOT set: Set start point
+        _startPoint = tapPosition;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Start point set. Tap Confirm Route.')),
         );
       } else {
-        // If both are set, tapping again clears the route and resets
+        // 4. Both set: Clear and set new start point (restarting the selection)
         _clearRoute();
-        _isSelectingPoints = true; // Stay in selection mode after clearing
+        // Since _clearRoute sets _isSelectingPoints to false, we immediately re-enable it.
+        _isSelectingPoints = true; 
+        _startPoint = tapPosition; // Start new selection immediately
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('Route cleared. Tap the map to set Start Location.')),
+              content: Text('Route cleared. Start point set. Tap for Destination.')),
         );
       }
+
+      _updateMarkers();
     });
   }
 
@@ -296,27 +255,22 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Inside the _MapScreenState class
-
   Future<void> _findRoute() async {
     if (_startPoint == null || _endPoint == null) return;
 
     setState(() {
       _isSearching = true;
       _currentRoute.clear();
-      // Remove previous route lines
-      // Note: If you have the network polylines visible, this line clears them too.
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('network_'));
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
     });
     try {
-      // NOTE: Assumes 'findPathWithGPS' is correctly implemented
       final segments =
           await _routeFinder.findPathWithGPS(_startPoint!, _endPoint!);
       setState(() {
         _currentRoute = segments;
         _drawRoutePolylines(segments);
-        _isConfirmed = true; // Set confirmation flag once route is found
+        _isConfirmed = true;
       });
       if (segments.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -343,12 +297,12 @@ class _MapScreenState extends State<MapScreen> {
       _endPoint = null;
       _currentRoute.clear();
       _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
-      _updateMarkers(); // Clears user markers
-      _loadNetworkVisualization(); // Redraws all network lines
+      _updateMarkers();
+      _loadNetworkVisualization();
       _isSelectingPoints = false;
       _isConfirmed = false;
       _isFavoriteTo = false;
-      _showStepOverlay = false; // Hide step overlay on clear
+      _showStepOverlay = false;
     });
   }
 
@@ -369,12 +323,10 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
-    if (segments.isEmpty) return; // Avoid calculating bounds on empty route
+    if (segments.isEmpty) return;
 
-    // Calculate bounds from all polyline points
     final allPoints = segments.expand((s) => s.path).toList();
 
-    // Check if we have enough points
     if (allPoints.length < 2) return;
 
     double minLat =
@@ -398,7 +350,45 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+  
+  // 🌟 HELPER FUNCTION: Unifies logic for setting end point (from search or favorites) 🌟
+void _setPreSetDestination(PreSetDestination toPlace) {
+    final LatLng newPosition = LatLng(toPlace.latitude, toPlace.longitude);
 
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(newPosition, 16.0),
+    );
+
+    setState(() {
+      _endPoint = newPosition;
+      // Clear start point if the user somehow searched for a location already set as start
+      if (_startPoint == newPosition) {
+        _startPoint = null;
+      }
+      _currentRoute.clear();
+      _polylines.removeWhere((p) => p.polylineId.value.startsWith('result_'));
+      _updateMarkers();
+
+      // Crucial: Manually enable the selection mode to allow the user to tap for the start point
+      _isSelectingPoints = true; 
+      _isConfirmed = false;
+      _isFavoriteTo = false;
+    });
+
+    // 🏆 FIX: Schedule the SnackBar call for after the current frame is built 🏆
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return; // Always check mounted if using async/post-frame callbacks
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Destination set to: "${toPlace.name}". Tap the map to set your Start Location.'),
+          duration: const Duration(milliseconds: 3000),
+        ),
+      );
+    });
+  }
+
+  /// 🎯 EDITED LOGIC: Now uses the helper function to set the End Point.
   void onSearchCallback(String query) {
     final String lowercaseQuery = query.toLowerCase();
 
@@ -406,7 +396,6 @@ class _MapScreenState extends State<MapScreen> {
       (node) => node.name.toLowerCase() == lowercaseQuery,
     );
 
-    // 1. Node Not Found: Show error and stop.
     if (matchingNode == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Node "$query" not found in the network data.')),
@@ -414,345 +403,83 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
-    // Node Found: Get the position.
-    final LatLng newPosition = matchingNode.position;
-
-    // 2. Animate Camera: Move the map view to the found node.
-    // We use the null assertion operator (!) because we know matchingNode is not null.
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-          newPosition, 16.0), // Zoom in a bit (e.g., zoom 16)
-    );
-
-    // 3. Show Success Feedback:
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-            Text('Location found: "${matchingNode.name}". Zooming to area.'),
-        duration: const Duration(milliseconds: 1500),
-      ),
-    );
-
-    // 4. IMPORTANT: Skip setState and all route logic.
-    // We do NOT modify _startPoint, _endPoint, _isConfirmed, or call _updateMarkers().
+    // 🌟 Use the new helper function 🌟
+    _setPreSetDestination(PreSetDestination(
+      name: matchingNode.name,
+      latitude: matchingNode.position.latitude,
+      longitude: matchingNode.position.longitude,
+    ));
   }
 
-  // Define a new function that acts as the entry point for showing the full instructions sheet
-  // This helps when calling it from the step-by-step overlay.
+  // Uses the extracted helper function and manages parent state updates via callback
+  void _showInstructionsSheet() {
+    showRouteDetailsSheet(
+      context: context,
+      currentRoute: _currentRoute,
+      endPoint: _endPoint,
+      totalTime: _totalTime,
+      totalDistance: _totalDistance,
+      isFavoriteTo: _isFavoriteTo,
+      onFavoriteToggle: (isFavorite) {
+        setState(() {
+          _isFavoriteTo = isFavorite;
+        });
+      },
+      onGoNowPressed: () {
+        setState(() {
+          _showStepOverlay = true;
+          _currentStepIndex = 0;
+        });
+      },
+    );
+  }
+
+  // Called from the step overlay to show the full sheet again
   void _showFullInstructions() {
-    // When showing the full instructions, we temporarily hide the step overlay
     setState(() {
       _showStepOverlay = false;
     });
     _showInstructionsSheet();
   }
 
-  void _showInstructionsSheet() async {
-    // ... (LOGIC 1: Check initial favorite status - KEEP THIS UNCHANGED)
-    final userId = getCurrentUserId();
-
-    if (userId != null && _endPoint != null) {
-      try {
-        final isCurrentlyFavorite = await isFavoriteInBackend(
-          _endPoint!.latitude,
-          _endPoint!.longitude,
-          userId, // Pass the userId now!
-        );
-
-        // We update the state of the *parent* widget so the initial sheet state is correct
-        setState(() {
-          _isFavoriteTo = isCurrentlyFavorite;
-        });
-      } catch (e) {
-        debugPrint('Error loading favorite status: $e');
-        setState(() {
-          _isFavoriteTo = false;
-        });
-      }
-    } else {
+  void _nextStep() {
+    if (_currentStepIndex < _currentRoute.length - 1) {
       setState(() {
-        _isFavoriteTo = false;
+        _currentStepIndex++;
       });
     }
-
-    // --------------------------------------------------------
-    // LOGIC 2: Display the sheet with the fix
-    // --------------------------------------------------------
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: kBackgroundColor,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          minChildSize: 0.2,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) {
-            return Container(
-              color: kBackgroundColor,
-              child: Column(
-                children: [
-                  // ... (Existing Padding for time/distance)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Total Time: ${_totalTime.toStringAsFixed(0)} mins',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Distance: ${_totalDistance.toStringAsFixed(1)} km',
-                          style:
-                              const TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: _currentRoute.length,
-                      itemBuilder: (context, index) {
-                        return InstructionTile(segment: _currentRoute[index]);
-                      },
-                    ),
-                  ),
-                  // 🛑 CRITICAL FIX: Wrap the button section in a StatefulBuilder
-                  // This allows the favorite button to update its own state (icon/color)
-                  // without needing to rebuild the entire parent MapScreen
-                  StatefulBuilder(
-                    builder: (BuildContext context, StateSetter modalSetState) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 12.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                // ... (Go Now button logic, unchanged)
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: kPrimaryColor,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.directions_run),
-                                label: const Text('Go Now'),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  // This setState calls the parent widget's setState, which is correct
-                                  // for controlling the top-level _showStepOverlay state
-                                  setState(() {
-                                    _showStepOverlay = true;
-                                    _currentStepIndex = 0;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // 🌟 FAVORITE TOGGLE BUTTON LOGIC (FIXED from Elevated.icon) 🌟
-                            // The error was "Undefined name 'Elevated'". Corrected to ElevatedButton.icon
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                // Now uses the state that is updated by modalSetState
-                                backgroundColor: _isFavoriteTo
-                                    ? Colors.amber
-                                    : Colors.grey.shade300,
-                                foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 14, horizontal: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: Icon(_isFavoriteTo
-                                  ? Icons.star
-                                  : Icons.star_border),
-                              label: const Text('Favorite To:'),
-                              onPressed: () async {
-                                final shouldFavorite = !_isFavoriteTo;
-                                final userId = getCurrentUserId();
-
-                                if (userId == null || _endPoint == null) {
-                                  // ... (Error handling, unchanged)
-                                  if (userId == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Error: You must be logged in to save favorites.')),
-                                    );
-                                  }
-                                  return;
-                                }
-
-                                try {
-                                  if (shouldFavorite) {
-                                    // --- SAVE LOGIC ---
-                                    final favorite = FavoritePlace(
-                                      id: _uuid.v4(), // Generate a UUID
-                                      name: getApproximateLocationName(
-                                          _endPoint!), // Use a better name if available
-                                      latitude: _endPoint!.latitude,
-                                      longitude: _endPoint!.longitude,
-                                      description: 'Saved from route',
-                                    );
-                                    // NOTE: Assumes 'saveFavoriteToBackend' is correctly implemented
-                                    await saveFavoriteToBackend(
-                                        favorite, userId);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Added to favorites!')),
-                                    );
-                                  } else {
-                                    // --- DELETE (UN-FAVORITE) LOGIC ---
-                                    // Delete is called globally and correctly passes params
-                                    await deleteFavoriteByCoordinates(
-                                        _endPoint!.latitude,
-                                        _endPoint!.longitude,
-                                        userId);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content:
-                                              Text('Removed from favorites!')),
-                                    );
-                                  }
-
-                                  // 🚀 SUCCESS: Update both the parent state AND the modal state
-                                  // This is the crucial line:
-                                  modalSetState(() {
-                                    _isFavoriteTo = shouldFavorite;
-                                  });
-                                  setState(
-                                      () {}); // Optional: ensures the whole MapScreen state knows, but modalSetState is the primary fix
-                                } catch (e) {
-                                  // 🛑 FAILURE: If it fails, only show error
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Failed to process favorite: ${e.toString().split(':').last.trim()}'),
-                                    ),
-                                  );
-                                  // State remains as it was, no change to _isFavoriteTo needed
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    }, // End of StatefulBuilder's builder function
-                  ), // End of StatefulBuilder
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
-  Widget _buildSelectionHeader() {
-    String fromText = _startPoint == null
-        ? 'Tap map to set Start Point'
-        : 'FROM: ${getApproximateLocationName(_startPoint!)}';
-
-    String toText = _endPoint == null
-        ? (_startPoint == null
-            ? 'Tap "Start New Route" to begin'
-            : 'Tap map to set Destination')
-        : 'TO: ${getApproximateLocationName(_endPoint!)}';
-
-    TextStyle statusStyle =
-        const TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
-
-    return Container(
-      margin: const EdgeInsets.only(top: 40, left: 20, right: 20),
-      padding: const EdgeInsets.all(15.0),
-      decoration: BoxDecoration(
-        color: kHeaderColor,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        minimum: const EdgeInsets.only(top: 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.trip_origin, color: Colors.green.shade700, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    fromText,
-                    style: statusStyle.copyWith(
-                      color: _startPoint != null
-                          ? Colors.black
-                          : Colors.grey.shade600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 10, thickness: 1),
-            Row(
-              children: [
-                Icon(Icons.location_on, color: Colors.red.shade700, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    toText,
-                    style: statusStyle.copyWith(
-                      color: _endPoint != null
-                          ? Colors.black
-                          : Colors.grey.shade600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  void _previousStep() {
+    if (_currentStepIndex > 0) {
+      setState(() {
+        _currentStepIndex--;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = kPrimaryColor;
 
-    // 🛑 FIX: Use the parameters passed into the widget to create the CameraPosition
+    // Use the parameters passed into the widget to create the CameraPosition
     final CameraPosition initialCameraPosition = CameraPosition(
       target: LatLng(widget.initialLatitude, widget.initialLongitude),
       zoom: widget.initialZoom,
     );
-    // 🛑 FIX END
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [
+          // --- GOOGLE MAP ---
           GoogleMap(
-            // Use the locally created initialCameraPosition
             initialCameraPosition: initialCameraPosition,
             onMapCreated: (controller) => _mapController = controller,
             markers: _markers,
             polylines: _polylines,
-            onTap: _onMapTapped,
+            // Tap logic is now refined to handle Start-first or End-first selection
+            onTap: _onMapTapped, 
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(
@@ -764,12 +491,17 @@ class _MapScreenState extends State<MapScreen> {
             mapToolbarEnabled: false,
           ),
 
+          // --- HEADER: Selection or Search ---
           if (_startPoint != null || _endPoint != null || _isSelectingPoints)
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: _buildSelectionHeader(),
+              // Use the new extracted MapSelectionHeader widget
+              child: MapSelectionHeader(
+                startPoint: _startPoint,
+                endPoint: _endPoint,
+              ),
             )
           else
             Positioned(
@@ -777,30 +509,32 @@ class _MapScreenState extends State<MapScreen> {
               left: 20,
               right: 20,
               child: SafeArea(
+                // Use the new extracted MapSearchHeader widget
                 child: MapSearchHeader(
                   primaryColor: primaryColor,
-                  nodeNames:
-                      uniqueNodeNames, // 🎯 CRITICAL FIX: Use the global getter name
-                  onSearch: onSearchCallback,
+                  nodeNames: uniqueNodeNames,
+                  onSearch: onSearchCallback, // This now triggers End Point selection
                 ),
               ),
             ),
 
-          if (_currentRoute.isNotEmpty &&
-              !_isSelectingPoints &&
-              !_showStepOverlay) // <--- ADDED: && !_showStepOverlay
+          // --- ROUTE INFO BUBBLE ---
+          if (_currentRoute.isNotEmpty && !_isSelectingPoints && !_showStepOverlay)
             Positioned(
               top: 350,
               left: MediaQuery.of(context).size.width / 2 - 80,
+              // Use the new extracted RouteInfoBubble widget
               child: RouteInfoBubble(
                 totalTime: _totalTime,
                 totalDistance: _totalDistance,
               ),
             ),
 
+          // --- ACTION BUTTON (Select/Clear) ---
           Positioned(
             bottom: 110,
             right: 20,
+            // Use the new extracted RouteActionButton widget
             child: RouteActionButton(
               primaryColor: primaryColor,
               isSearching: _isSearching,
@@ -811,8 +545,23 @@ class _MapScreenState extends State<MapScreen> {
               enableSelection: _enablePointSelection,
             ),
           ),
+          
+          // NEW FIX: Button to bring back the full instructions sheet
+          if (_isConfirmed && _currentRoute.isNotEmpty && !_showStepOverlay)
+            Positioned(
+              bottom: 30, // Position it to the right
+              right: 20,
+              child: FloatingActionButton.extended(
+                heroTag: 'show_instructions_sheet',
+                onPressed: _showInstructionsSheet,
+                label: const Text('Route Details'),
+                icon: const Icon(Icons.list_alt),
+                backgroundColor: primaryColor.withOpacity(0.95),
+                foregroundColor: Colors.white,
+              ),
+            ),
 
-          // --- CONFIRM BUTTON ---
+          // --- CONFIRM BUTTON (positioned center/bottom, opposite to Route Details FAB) ---
           if (_startPoint != null && _endPoint != null && !_isConfirmed)
             Positioned(
               bottom: 30,
@@ -857,7 +606,7 @@ class _MapScreenState extends State<MapScreen> {
                   decoration: BoxDecoration(
                     color: kHeaderColor,
                     borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 8,
@@ -874,47 +623,32 @@ class _MapScreenState extends State<MapScreen> {
                             fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      InstructionTile(
-                          segment: _currentRoute[_currentStepIndex]),
+                      // Use the new InstructionTile widget
+                      InstructionTile(segment: _currentRoute[_currentStepIndex]),
                       const SizedBox(height: 12),
-                      // 👇 MODIFIED ROW WITH NEW BUTTON 👇
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // 🌟 NEW: View Entire Instructions Button 🌟
                           OutlinedButton.icon(
-                            onPressed:
-                                _showFullInstructions, // Calls the full sheet function
+                            onPressed: _showFullInstructions,
                             icon: const Icon(Icons.list),
                             label: const Text('Full Route'),
                             style: OutlinedButton.styleFrom(
                                 foregroundColor: kPrimaryColor,
                                 side: BorderSide(color: kPrimaryColor)),
                           ),
-                          // ----------------------------------------
-
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               if (_currentStepIndex > 0)
                                 ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _currentStepIndex--;
-                                    });
-                                  },
+                                  onPressed: _previousStep,
                                   child: const Text('Previous'),
                                 ),
-                              const SizedBox(
-                                  width:
-                                      8), // Added spacing between prev/next/done
+                              const SizedBox(width: 8),
                               if (_currentStepIndex < _currentRoute.length - 1)
                                 ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _currentStepIndex++;
-                                    });
-                                  },
+                                  onPressed: _nextStep,
                                   child: const Text('Next'),
                                 ),
                               if (_currentStepIndex == _currentRoute.length - 1)
@@ -938,11 +672,5 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
     );
-  }
-
-  String getApproximateLocationName(LatLng point) {
-    // This calls the external mock function
-    // NOTE: Assumes 'getApproximateLocationName' is correctly defined in geo_utils.dart
-    return 'Marker Location (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
   }
 }

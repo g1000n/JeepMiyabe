@@ -1,5 +1,3 @@
-// widgets/map_search_header.dart
-
 import 'package:flutter/material.dart';
 
 /// The custom search bar and settings icon for the top of the map screen.
@@ -31,7 +29,7 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
   @override
   void initState() {
     super.initState();
-    // 🎯 FIX: Add listener to ensure suggestions update as user types
+    // ✅ Keep: Listener to ensure suggestions update as user types
     _controller.addListener(_updateSuggestion);
   }
 
@@ -73,7 +71,7 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
     String finalQuery = _controller.text.trim();
 
     // If there's a suggestion and the user hits enter, use the full suggestion.
-    if (_suggestion != null && finalQuery.isNotEmpty) {
+    if (_suggestion != null && finalQuery.isNotEmpty && _suggestion!.toLowerCase().startsWith(finalQuery.toLowerCase())) {
       // Use the full suggestion text to replace the input
       finalQuery = _suggestion!;
       _controller.text = finalQuery;
@@ -85,7 +83,21 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
     // Remove focus to hide the keyboard
     FocusManager.instance.primaryFocus?.unfocus();
     // Recalculate suggestion after handling search
-    _updateSuggestion();
+    // This is needed to clear the suggestion if the search used the full text
+    _updateSuggestion(); 
+  }
+
+  /// Helper function to use the full suggestion and then execute search.
+  void _acceptSuggestionAndSearch() {
+    if (_suggestion != null) {
+      // Set the full text into the controller
+      _controller.text = _suggestion!;
+      // Move cursor to the end
+      _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _suggestion!.length));
+      // Execute the search logic
+      _handleSearch();
+    }
   }
 
   @override
@@ -100,13 +112,8 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
       color: Colors.black,
     );
 
-    // The query part of the suggestion (what the user has already typed)
-    final String queryPart = _controller.text.trim();
-    // The autocompleted part of the suggestion
-    final String suggestionPart =
-        _suggestion != null && _suggestion!.startsWith(queryPart)
-            ? _suggestion!.substring(queryPart.length)
-            : '';
+    // Note: Removed the redundant queryPart/suggestionPart calculation from build,
+    // as the suggestion logic relies on placing the full faint text behind the field.
 
     return Row(
       children: [
@@ -131,12 +138,12 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
                 const Icon(Icons.search, color: Colors.grey),
                 const SizedBox(width: 10),
                 Expanded(
-                  // 🎯 FIX: Simplified Stack for suggestion overlay
                   child: Stack(
                     alignment: Alignment.centerLeft,
                     children: [
                       // 1. The Faint Suggestion Text (Full suggested word)
-                      if (_suggestion != null)
+                      // This appears *behind* the TextField.
+                      if (_suggestion != null && _controller.text.isNotEmpty)
                         Text(
                           _suggestion!,
                           style: suggestionStyle,
@@ -146,7 +153,8 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
                       // 2. The User's Actual Text Field
                       TextField(
                         controller: _controller,
-                        onSubmitted: (value) => _handleSearch(),
+                        // Triggers when user hits "Enter" or "Done" on the keyboard
+                        onSubmitted: (value) => _handleSearch(), 
                         style: inputStyle,
                         decoration: InputDecoration(
                           hintText: 'Search for a jeepney stop...',
@@ -155,34 +163,24 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.zero,
-
-                          // 🎯 CRITICAL FIX: Make the background transparent
+                          
+                          // Ensures the TextField background is fully transparent
                           filled: true,
-                          fillColor:
-                              Colors.transparent, // Ensure no background color
+                          fillColor: Colors.transparent, 
 
+                          // Prevent hint text from fading in when suggestion is present
                           hintFadeDuration:
                               _suggestion != null ? Duration.zero : null,
                         ),
-                        // Makes the typed text transparent so only the suggestion is visible
-                        // while the cursor is correctly positioned.
-                        // NOTE: We are removing this transparency and instead relying on the
-                        // suggestion text to be behind the standard text input.
                       ),
                     ],
                   ),
                 ),
 
-                // Add an explicit button to confirm the suggestion if available
-                if (_suggestion != null && queryPart.isNotEmpty)
+                // Explicit button to accept the suggestion and search
+                if (_suggestion != null && _controller.text.isNotEmpty)
                   GestureDetector(
-                    onTap: () {
-                      // Accept the suggestion
-                      _controller.text = _suggestion!;
-                      _controller.selection = TextSelection.fromPosition(
-                          TextPosition(offset: _suggestion!.length));
-                      _handleSearch();
-                    },
+                    onTap: _acceptSuggestionAndSearch, // Uses the new dedicated method
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8.0),
                       child: Icon(Icons.arrow_forward,
