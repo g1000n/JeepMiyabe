@@ -13,7 +13,7 @@ import '../widgets/route_info_bubble.dart';
 import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
 import '../widgets/map_selection_header.dart';
-import '../widgets/route_details_sheet.dart';
+import '../widgets/route_details_sheet.dart'; // <-- Used to display disclaimer
 import '../widgets/instruction_tile.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -35,7 +35,6 @@ bool _isFavoriteTo = false;
 const Color kPrimaryColor = Color(0xFFE4572E);
 const Color kHeaderColor = Color(0xFFFFFFFF);
 
-// 🌟 NEW CLASS: Model to pass pre-set destination data from other pages (like Favorites)
 // 🌟 NEW CLASS: Model to pass pre-set destination data from other pages (like Favorites)
 class PreSetDestination {
   final String name;
@@ -59,6 +58,9 @@ class PreSetDestination {
   int get hashCode => name.hashCode ^ latitude.hashCode ^ longitude.hashCode;
 }
 
+// --- DISCLAIMER CONSTANT (Added as requested) ---
+const String kRouteDisclaimer =
+    "Disclaimer: Routes prioritize the shortest mathematical cost (time/distance). This may suggest a path with transfers over a direct single-jeep route if the overall calculated cost is lower. Always confirm routes locally, as direct options may exist that are not shown here.";
 // ---------------------------------------------------------------------------
 
 class MapScreen extends StatefulWidget {
@@ -139,13 +141,13 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void setExternalDestination(PreSetDestination destination) {
-  // Clear any existing route before setting the new destination
-  // This is crucial for restarting the flow.
-  _clearRoute(); 
-  
-  // Call the existing logic to process and set the destination
-  _setPreSetDestination(destination); 
-}
+    // Clear any existing route before setting the new destination
+    // This is crucial for restarting the flow.
+    _clearRoute();
+
+    // Call the existing logic to process and set the destination
+    _setPreSetDestination(destination);
+  }
 
   void _enablePointSelection() {
     setState(() {
@@ -291,49 +293,51 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-Future<void> _saveRouteHistory() async {
-  // 1. Get current user's ID
-  final String? userId = supabase.auth.currentUser?.id;
-  if (userId == null) {
-    debugPrint('🛑 HISTORY SAVE FAILED: User is not authenticated.');
-    // Must be logged in to save history
-    return; 
+  Future<void> _saveRouteHistory() async {
+    // 1. Get current user's ID
+    final String? userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      debugPrint('🛑 HISTORY SAVE FAILED: User is not authenticated.');
+      // Must be logged in to save history
+      return;
+    }
+
+    // 2. Ensure essential data exists before proceeding
+    // (Assuming _currentRoute, _startPoint, and _endPoint are state variables)
+    if (_currentRoute.isEmpty || _startPoint == null || _endPoint == null) {
+      debugPrint('🛑 HISTORY SAVE FAILED: Route data is incomplete.');
+      return;
+    }
+
+    // 3. Convert the list of RouteSegments using the toJson() method.
+    // This is critical for the jsonb column.
+    final List<Map<String, dynamic>> routeJsonList =
+        _currentRoute.map((segment) => segment.toJson()).toList();
+
+    // 4. Prepare start/end point names (using coordinates as a fallback)
+    final String startString =
+        'Lat: ${_startPoint!.latitude.toStringAsFixed(4)}, Lng: ${_startPoint!.longitude.toStringAsFixed(4)}';
+    final String endString =
+        'Lat: ${_endPoint!.latitude.toStringAsFixed(4)}, Lng: ${_endPoint!.longitude.toStringAsFixed(4)}';
+
+    try {
+      await supabase.from('route_history').insert({
+        'user_id': userId,
+        'start_point': startString,
+        'end_point': endString,
+        'route_data': routeJsonList,
+      });
+
+      debugPrint('✅ Route history saved successfully for user $userId.');
+    } on PostgrestException catch (e) {
+      // This logs database errors (like incorrect column names, missing constraints)
+      debugPrint('🛑 SUPABASE ERROR saving history: ${e.message}');
+    } catch (e) {
+      // This logs general programming errors
+      debugPrint('🛑 GENERAL EXCEPTION saving route history: $e');
+    }
   }
 
-  // 2. Ensure essential data exists before proceeding
-  // (Assuming _currentRoute, _startPoint, and _endPoint are state variables)
-  if (_currentRoute.isEmpty || _startPoint == null || _endPoint == null) {
-    debugPrint('🛑 HISTORY SAVE FAILED: Route data is incomplete.');
-    return;
-  }
-
-  // 3. Convert the list of RouteSegments using the toJson() method.
-  // This is critical for the jsonb column.
-  final List<Map<String, dynamic>> routeJsonList = 
-      _currentRoute.map((segment) => segment.toJson()).toList();
-  
-  // 4. Prepare start/end point names (using coordinates as a fallback)
-  final String startString = 'Lat: ${_startPoint!.latitude.toStringAsFixed(4)}, Lng: ${_startPoint!.longitude.toStringAsFixed(4)}';
-  final String endString = 'Lat: ${_endPoint!.latitude.toStringAsFixed(4)}, Lng: ${_endPoint!.longitude.toStringAsFixed(4)}';
-
-try {
-    await supabase.from('route_history').insert({
-      'user_id': userId,
-      'start_point': startString,
-      'end_point': endString,
-      'route_data': routeJsonList, 
-    });
-    
-    debugPrint('✅ Route history saved successfully for user $userId.');
-
-  } on PostgrestException catch (e) {
-    // This logs database errors (like incorrect column names, missing constraints)
-    debugPrint('🛑 SUPABASE ERROR saving history: ${e.message}'); 
-  } catch (e) {
-    // This logs general programming errors
-    debugPrint('🛑 GENERAL EXCEPTION saving route history: $e');
-  }
-}
   Future<void> _findRoute() async {
     if (_startPoint == null || _endPoint == null) return;
 
@@ -500,6 +504,8 @@ try {
       totalTime: _totalTime,
       totalDistance: _totalDistance,
       isFavoriteTo: _isFavoriteTo,
+      // 🌟 ADDED DISCLAIMER TEXT HERE 🌟
+      disclaimerText: kRouteDisclaimer, 
       onFavoriteToggle: (isFavorite) {
         setState(() {
           _isFavoriteTo = isFavorite;

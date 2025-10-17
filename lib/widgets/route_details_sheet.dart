@@ -2,10 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import 'package:jeepmiyabe/favorite_place.dart'; // Ensure this import path is correct
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../auth_service.dart'; // Ensure this import path is correct
-import '../route_segment.dart'; // Ensure this import path is correct
+
+// Ensure these import paths are correct for your project structure
+import '../favorite_place.dart'; 
+import '../auth_service.dart'; 
+import '../route_segment.dart'; 
 import '../geo_utils.dart'; // Assume getApproximateLocationName is here
 import 'instruction_tile.dart'; // Import the extracted tile widget
 
@@ -13,6 +15,44 @@ import 'instruction_tile.dart'; // Import the extracted tile widget
 const Color kPrimaryColor = Color(0xFFE4572E);
 const Color kBackgroundColor = Color(0xFFFDF8E2);
 final Uuid _uuid = const Uuid();
+
+// --- NEW WIDGET: Disclaimer Card ---
+class DisclaimerCard extends StatelessWidget {
+  final String text;
+
+  const DisclaimerCard({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: Colors.yellow.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Colors.black87,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+// -----------------------------------
 
 /// Displays the detailed route instructions sheet with 'Go Now' and 'Favorite' functionality.
 Future<void> showRouteDetailsSheet({
@@ -22,6 +62,7 @@ Future<void> showRouteDetailsSheet({
   required double totalTime,
   required double totalDistance,
   required bool isFavoriteTo,
+  required String disclaimerText, // <-- ADDED REQUIRED PARAMETER
   required Function(bool) onFavoriteToggle,
   required VoidCallback onGoNowPressed,
 }) async {
@@ -80,6 +121,10 @@ Future<void> showRouteDetailsSheet({
                     ],
                   ),
                 ),
+                
+                // <-- NEW: ADD THE DISCLAIMER CARD HERE -->
+                DisclaimerCard(text: disclaimerText),
+
                 Expanded(
                   child: ListView.builder(
                     controller: scrollController,
