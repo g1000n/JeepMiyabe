@@ -1,6 +1,7 @@
+import 'dart:io'; // Required for SocketException
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/auth_storage.dart';  // Adjust path to your AuthStorage file (from MFA cooldown solution)
+import '../utils/auth_storage.dart'; // Adjust path to your AuthStorage file
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,16 +11,16 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _formKey = GlobalKey<FormState>();  // Added for form validation
+  final _formKey = GlobalKey<FormState>(); // Added for form validation
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   String? _errorMessage;
   bool _loading = false;
-  bool _obscurePassword = true; 
+  bool _obscurePassword = true;
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;  // Validate form before proceeding
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _loading = true;
@@ -67,13 +68,16 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         setState(() => _errorMessage = e.message);
       }
+    } on SocketException catch (_) {
+      // CATCH FOR FAILED HOST LOOKUP / NO CONNECTION
+      setState(() => _errorMessage = "Please check your internet connection and try again. 🌐");
     } catch (_) {
       setState(() => _errorMessage = "Login failed. Please try again.");
     }
 
     setState(() => _loading = false);
   }
-  
+
   InputDecoration _inputDecoration(String hint, {Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
@@ -95,9 +99,9 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF8E2),
       body: SafeArea(
-        child: SingleChildScrollView(  // Added for keyboard handling on small screens
+        child: SingleChildScrollView( // Added for keyboard handling on small screens
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: Form(  // Wrapped Column in Form for validation
+          child: Form( // Wrapped Column in Form for validation
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -125,13 +129,13 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Welcome back!", 
-                  style: TextStyle(color: Color(0xFFE4572E)),  // Standardized to primary color
+                  "Welcome back!",
+                  style: TextStyle(color: Color(0xFFE4572E)), // Standardized to primary color
                 ),
                 const SizedBox(height: 30),
 
                 // Email
-                TextFormField(  // Changed from TextField to TextFormField for validation
+                TextFormField( // Changed from TextField to TextFormField for validation
                   controller: _emailController,
                   decoration: _inputDecoration("Email"),
                   validator: (value) {
@@ -143,12 +147,12 @@ class _LoginPageState extends State<LoginPage> {
                     }
                     return null;
                   },
-                  keyboardType: TextInputType.emailAddress,  // Better UX for email input
+                  keyboardType: TextInputType.emailAddress, // Better UX for email input
                 ),
                 const SizedBox(height: 15),
 
                 // Password w/ toggle
-                TextFormField(  // Changed from TextField to TextFormField
+                TextFormField( // Changed from TextField to TextFormField
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: _inputDecoration(
@@ -204,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Don’t have an account? ", style: TextStyle(color: Color(0xFFE4572E))),  // Standardized color
+                    const Text("Don’t have an account? ", style: TextStyle(color: Color(0xFFE4572E))), // Standardized color
                     GestureDetector(
                       onTap: () {
                         Navigator.pushNamed(context, '/signup');

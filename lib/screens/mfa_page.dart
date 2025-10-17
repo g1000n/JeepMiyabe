@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:io'; // 👈 FIX 1: Import dart:io for SocketException
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/auth_storage.dart';  // Adjust path to your AuthStorage file (from MFA cooldown solution)
+import '../utils/auth_storage.dart'; // Adjust path to your AuthStorage file (from MFA cooldown solution)
 
 class MFAPage extends StatefulWidget {
   final String email;
@@ -66,10 +67,19 @@ class _MFAPageState extends State<MFAPage> {
           ),
         );
       }
+    } on SocketException catch (_) { // 👈 FIX 2: Handle network connection error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please check your internet connection and try again. 🌐"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text("Failed to resend OTP. Please try again."),
             backgroundColor: Colors.red,
           ),
@@ -92,13 +102,15 @@ class _MFAPageState extends State<MFAPage> {
     });
 
     try {
-      final response = await Supabase.instance.client.auth.verifyOTP(
+      // FIX 3: Correctly define the AuthResponse object
+      final AuthResponse res = await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
         token: otp,
         type: OtpType.email,
       );
 
-      if (response.user != null && mounted) {
+      // FIX 3: Check 'res.user'
+      if (res.user != null && mounted) {
         // Save MFA success for 7-day cooldown
         await AuthStorage.saveMFASuccess();
         
@@ -120,11 +132,20 @@ class _MFAPageState extends State<MFAPage> {
           ),
         );
       }
+    } on SocketException catch (_) { // 👈 FIX 2: Handle network connection error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please check your internet connection and try again. 🌐"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("OTP verification failed."),
+            content: Text("An unexpected error occurred during OTP verification."),
             backgroundColor: Colors.red,
           ),
         );
@@ -134,6 +155,8 @@ class _MFAPageState extends State<MFAPage> {
     if (mounted) {
       setState(() => _loading = false);
     }
+    
+    // REMOVED: The erroneous, duplicate navigation logic that was here.
   }
 
   @override

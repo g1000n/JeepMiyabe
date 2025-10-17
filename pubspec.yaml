@@ -17,6 +17,7 @@ dependencies:
 
   # UI and Core packages
   cupertino_icons: ^1.0.8
+  intl: ^0.18.1
   
   # --- Map and Routing Dependencies ---
   google_maps_flutter: ^2.9.0 # Main map view
@@ -26,15 +27,17 @@ dependencies:
   collection: ^1.18.0 # For PriorityQueue implementation in route finding
   
   # UI Specific dependencies
-  font_awesome_flutter: ^10.6.0 # ADDED: Required for the car icon used in map_screen.dart UI
+  font_awesome_flutter: ^10.6.0 # Required for the car icon used in map_screen.dart UI
   pin_code_fields: ^8.0.1 # Likely for phone number/OTP login flow
-
   shared_preferences: ^2.2.2
+  
+  # ✅ FIX: Moved from dev_dependencies to be included in the app bundle
+  connectivity_plus: ^5.0.2 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  
   # Linting rules are correctly placed here.
   flutter_lints: ^5.0.0
 

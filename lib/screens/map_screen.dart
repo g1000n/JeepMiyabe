@@ -291,6 +291,49 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+Future<void> _saveRouteHistory() async {
+  // 1. Get current user's ID
+  final String? userId = supabase.auth.currentUser?.id;
+  if (userId == null) {
+    debugPrint('🛑 HISTORY SAVE FAILED: User is not authenticated.');
+    // Must be logged in to save history
+    return; 
+  }
+
+  // 2. Ensure essential data exists before proceeding
+  // (Assuming _currentRoute, _startPoint, and _endPoint are state variables)
+  if (_currentRoute.isEmpty || _startPoint == null || _endPoint == null) {
+    debugPrint('🛑 HISTORY SAVE FAILED: Route data is incomplete.');
+    return;
+  }
+
+  // 3. Convert the list of RouteSegments using the toJson() method.
+  // This is critical for the jsonb column.
+  final List<Map<String, dynamic>> routeJsonList = 
+      _currentRoute.map((segment) => segment.toJson()).toList();
+  
+  // 4. Prepare start/end point names (using coordinates as a fallback)
+  final String startString = 'Lat: ${_startPoint!.latitude.toStringAsFixed(4)}, Lng: ${_startPoint!.longitude.toStringAsFixed(4)}';
+  final String endString = 'Lat: ${_endPoint!.latitude.toStringAsFixed(4)}, Lng: ${_endPoint!.longitude.toStringAsFixed(4)}';
+
+try {
+    await supabase.from('route_history').insert({
+      'user_id': userId,
+      'start_point': startString,
+      'end_point': endString,
+      'route_data': routeJsonList, 
+    });
+    
+    debugPrint('✅ Route history saved successfully for user $userId.');
+
+  } on PostgrestException catch (e) {
+    // This logs database errors (like incorrect column names, missing constraints)
+    debugPrint('🛑 SUPABASE ERROR saving history: ${e.message}'); 
+  } catch (e) {
+    // This logs general programming errors
+    debugPrint('🛑 GENERAL EXCEPTION saving route history: $e');
+  }
+}
   Future<void> _findRoute() async {
     if (_startPoint == null || _endPoint == null) return;
 
@@ -466,6 +509,7 @@ class _MapScreenState extends State<MapScreen> {
         setState(() {
           _showStepOverlay = true;
           _currentStepIndex = 0;
+          _saveRouteHistory();
         });
       },
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'account_info_page.dart'; // Import the updated AccountInfoPage
+import 'account_info_page.dart';
+import 'history_screen.dart';
 
 // --- CONSTANTS ---
 const Color kPrimaryColor = Color(0xFFE4572E);
@@ -136,8 +137,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.history,
                       label: "History",
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("History tapped")),
+                       Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HistoryScreen()),
                         );
                       },
                       primaryColor: kPrimaryColor,

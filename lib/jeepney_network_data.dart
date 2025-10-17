@@ -842,9 +842,9 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     ]
   },
 
-// 10. VILLA - PAMPANG SM TELEBESTAGEN (Yellow)
+// 10. VILLA - PAMPANG SM TELABESTAGEN (Yellow)
   {
-    'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Outbound',
+    'route': 'VILLA - PAMPANG SM TELABESTAGEN (Yellow) Outbound',
     'color': Colors.yellow,
     'nodes': [
       'N15',
@@ -866,7 +866,7 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     ]
   },
   {
-    'route': 'VILLA - PAMPANG SM TELEBESTAGEN (Yellow) Inbound',
+    'route': 'VILLA - PAMPANG SM TELABESTAGEN (Yellow) Inbound',
     'color': Colors.yellow,
     'nodes': [
       'N28',
