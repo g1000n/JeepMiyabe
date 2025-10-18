@@ -1,12 +1,11 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' as math;
-import 'pathfinding_config.dart'; // Import constant JEEPNEY_AVG_SPEED_KM_PER_MIN
+import 'pathfinding_config.dart';
 
-/// Calculates the distance between two LatLng points using the Haversine formula (km).
-/// Calculates the distance between two LatLng points using the Haversine formula (km).
+/// Calculates the distance between two LatLng points in kilometers (Haversine formula).
 double calculateDistance(LatLng point1, LatLng point2) {
-  // Use the mean radius of the Earth (WGS-84 standard) for better precision.
-  const double earthRadiusKm = 6371.0088; // Original was 6371.0
+  // Mean radius of the Earth in kilometers.
+  const double earthRadiusKm = 6371.0088;
 
   final double dLat = _degreesToRadians(point2.latitude - point1.latitude);
   final double dLon = _degreesToRadians(point2.longitude - point1.longitude);
@@ -14,7 +13,7 @@ double calculateDistance(LatLng point1, LatLng point2) {
   final double lat1Rad = _degreesToRadians(point1.latitude);
   final double lat2Rad = _degreesToRadians(point2.latitude);
 
-  // Haversine formula
+  // Haversine formula calculation
   final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
       math.sin(dLon / 2) *
           math.sin(dLon / 2) *
@@ -31,36 +30,21 @@ double _degreesToRadians(double degrees) {
   return degrees * math.pi / 180;
 }
 
-// --- MISSING FUNCTION ADDED HERE ---
-
-/// **REQUIRED FIX: Placeholder function to provide a name for a LatLng point.**
-/// In a real application, this would use a Geocoding API call (like Google Maps Platform)
-/// to convert the coordinates into a human-readable address.
+/// Placeholder for converting coordinates to a readable name (requires Geocoding API in production).
 String getApproximateLocationName(LatLng position) {
-  // If we were closer to a known jeepney stop, we could use that name.
-  // For now, we return a simple coordinate description.
+  // Returns a simple coordinate string as a placeholder name.
   return 'Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}';
 }
 
-/// Calculates the time (in minutes) required to travel between two points.
-/// This is used as the 'weight' for the graph edges.
-/// Time (min) = Distance (km) / Speed (km/min)
+/// Calculates travel time (in minutes) based on distance and average jeepney speed.
 double calculateJeepneyWeight(LatLng point1, LatLng point2) {
   final distanceKm = calculateDistance(point1, point2);
-  // Use the constant defined in pathfinding_config.dart
+  // Calculates Time = Distance / Speed.
   return distanceKm / JEEPNEY_AVG_SPEED_KM_PER_MIN;
 }
 
-// --- END OF MISSING FUNCTION ---
-
-/// --- POLYLINE STAGGERING LOGIC ---
-///
-/// Calculates points for a polyline that are slightly offset from the main line.
-/// This is used to display multiple overlapping jeepney routes clearly on the map.
-///
-/// [points]: The original LatLng points of the segment (usually just start and end node).
-/// [index]: The 0-based index of the current route sharing this segment.
-/// [totalSegments]: The total number of routes that share this segment.
+/// Calculates points for a polyline that are slightly offset (staggered) 
+/// from the original line to display overlapping routes clearly on the map.
 List<LatLng> calculateStaggeredPoints(
     List<LatLng> points, int index, int totalSegments) {
   if (points.length < 2) return points;
@@ -68,21 +52,17 @@ List<LatLng> calculateStaggeredPoints(
   final LatLng start = points.first;
   final LatLng end = points.last;
 
-  // Determine the offset amount. We use 5 meters (0.005 km) as the base offset.
   const double baseOffsetKm = 0.005;
 
-  // Calculate the total required offset based on its position in the stack (index)
-  // Example: Center line (index=0) is offset 0. Index=1 is offset 5m, Index=2 is offset -5m, Index=3 is offset 10m, etc.
+  // Calculates the signed offset distance (e.g., 0, +5m, -5m, +10m, -10m...).
   final double signedOffsetKm = (index == 0)
       ? 0.0
       : baseOffsetKm * (index.isOdd ? (index + 1) ~/ 2 : -index ~/ 2);
 
-  // Convert km offset to degrees (approximation for LatLng adjustment)
-  // 1 degree of latitude is roughly 111 km. 1 degree of longitude varies.
-  // We'll use a simplified degree approximation for staggering effect.
+  // Approximate degree conversion for the offset.
   final double offsetDegrees = signedOffsetKm / 111.0;
 
-  // Calculate the angle (bearing) of the line segment
+  // Calculate the bearing (angle) of the line segment.
   final double lat1 = _degreesToRadians(start.latitude);
   final double lon1 = _degreesToRadians(start.longitude);
   final double lat2 = _degreesToRadians(end.latitude);
@@ -95,16 +75,16 @@ List<LatLng> calculateStaggeredPoints(
         math.sin(lat1) * math.cos(lat2) * math.cos(dLon),
   );
 
-  // Perpendicular angle for offset
+  // Determine the perpendicular angle for offsetting.
   final double perpendicularRad = bearingRad + math.pi / 2.0;
 
-  // Apply the offset to the start point
+  // Apply the offset to the start point.
   final LatLng staggeredStart = LatLng(
     start.latitude + offsetDegrees * math.sin(perpendicularRad),
     start.longitude + offsetDegrees * math.cos(perpendicularRad),
   );
 
-  // Apply the offset to the end point
+  // Apply the offset to the end point.
   final LatLng staggeredEnd = LatLng(
     end.latitude + offsetDegrees * math.sin(perpendicularRad),
     end.longitude + offsetDegrees * math.cos(perpendicularRad),
