@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:pin_code_fields/pin_code_fields.dart'; // Ensure this is imported
+import 'package:pin_code_fields/pin_code_fields.dart';
 
-// --- CONSTANTS ---
 const Color kPrimaryColor = Color(0xFFE4572E);
 const Color kBackgroundColor = Color(0xFFFDF8E2);
 
@@ -20,7 +19,7 @@ class _ChangePasswordOTPState extends State<ChangePasswordOTPPage> {
 
   Future<void> _verifyOTPAndUpdate() async {
     final otp = _otpController.text.trim();
-    if (otp.length != 6) return;  // Ensure 6-digit OTP
+    if (otp.length != 6) return;
     setState(() => _loading = true);
     try {
       await Supabase.instance.client.auth.verifyOTP(
@@ -34,7 +33,7 @@ class _ChangePasswordOTPState extends State<ChangePasswordOTPPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password updated successfully')),
       );
-      Navigator.popUntil(context, ModalRoute.withName('/dashboard'));  // Or your dashboard route
+      Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -46,18 +45,17 @@ class _ChangePasswordOTPState extends State<ChangePasswordOTPPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundColor,  // Match MFA page background
+      backgroundColor: kBackgroundColor,
       appBar: AppBar(
         title: const Text('Verify OTP'),
-        backgroundColor: kPrimaryColor,  // Themed app bar
+        backgroundColor: kPrimaryColor,
       ),
-      body: SafeArea(  // SafeArea for edge-to-edge compatibility
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),  // Consistent padding like MFA
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Instructional Text (like MFA page)
               const Text(
                 "Enter the 6-digit code sent to your email",
                 style: TextStyle(
@@ -69,7 +67,6 @@ class _ChangePasswordOTPState extends State<ChangePasswordOTPPage> {
               ),
               const SizedBox(height: 30),
 
-              // PinCodeTextField (matches MFA page)
               PinCodeTextField(
                 appContext: context,
                 length: 6,
@@ -85,12 +82,11 @@ class _ChangePasswordOTPState extends State<ChangePasswordOTPPage> {
                   activeColor: kPrimaryColor,
                   selectedColor: kPrimaryColor,
                 ),
-                onChanged: (_) {},  // Can add logic if needed
-                onCompleted: (otp) => _verifyOTPAndUpdate(),  // Auto-verify on complete
+                onChanged: (_) {},
+                onCompleted: (otp) => _verifyOTPAndUpdate(),
               ),
               const SizedBox(height: 20),
 
-              // Verify Button (styled like MFA)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

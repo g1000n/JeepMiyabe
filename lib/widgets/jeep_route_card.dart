@@ -6,9 +6,6 @@ import 'jeep_info_sheet_content.dart'; // Import the detailed sheet content
 // --- CONSTANTS (Define or import from a central file) ---
 const Color kCardColor = Color(0xFFFC775C);
 
-// ---------------------------------------------------------------------------
-// UPDATED JEEPNEY ROUTE CARD WIDGET
-// ---------------------------------------------------------------------------
 class JeepRouteCard extends StatelessWidget {
   final String routeName;
   final String colorName;

@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart'; 
-// ⚠️ IMPORTANT: Verify these paths match your project structure!
-import '../../route_segment.dart'; // Assumes route_segment.dart is in the parent directory's model folder
-import '../../widgets/instruction_tile.dart'; // Assumes instruction_tile.dart is in the parent directory's widgets folder
+import '../../route_segment.dart';
+import '../../widgets/instruction_tile.dart';
 
-// Access the Supabase client instance
+
 final supabase = Supabase.instance.client; 
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
-  // --- Data Fetching Logic ---
   Future<List<Map<String, dynamic>>> _fetchHistory() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) {
-      // User is not authenticated, return empty list
       return []; 
     }
 
@@ -24,8 +21,8 @@ class HistoryScreen extends StatelessWidget {
           .from('route_history')
           .select()
           .eq('user_id', userId)
-          .order('created_at', ascending: false) // Show newest trips first
-          .limit(50); // Fetch up to 50 recent trips
+          .order('created_at', ascending: false)
+          .limit(50);
       
       return response as List<Map<String, dynamic>>; 
     } catch (e) {
@@ -34,17 +31,17 @@ class HistoryScreen extends StatelessWidget {
     }
   }
 
-  // --- UI: Displays the detailed instructions for a single trip ---
+ 
   void _showDetails(BuildContext context, Map<String, dynamic> route) {
-    // 1. Get the raw JSON list from the 'route_data' column
+    // 1. Extract the raw route data from the route record
     final List<dynamic> rawRouteData = route['route_data'] as List<dynamic>;
     
-    // 2. Deserialize the raw JSON list into a List<RouteSegment> objects
+    // 2. Parse into List<RouteSegment>
     final List<RouteSegment> segments = rawRouteData
         .map((json) => RouteSegment.fromJson(json as Map<String, dynamic>))
         .toList();
     
-    // Show the details in a bottom sheet
+    // 3. Show the modal bottom sheet with route details
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

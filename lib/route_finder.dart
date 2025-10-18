@@ -99,7 +99,7 @@ class RouteFinder {
     );
   }
 
- Future<List<RouteSegment>> findPathWithGPS(
+  Future<List<RouteSegment>> findPathWithGPS(
       LatLng startGps, LatLng endGps) async {
     Node? nearestStartNode = _findNearestNode(startGps);
     if (nearestStartNode == null) {
@@ -153,8 +153,6 @@ class RouteFinder {
         // 💡 NEW LOGIC: Calculate the straight-line distance for the current network edge
         final Node edgeStartNode = allNodes[nextEdge.startNodeId]!;
         final Node edgeEndNode = allNodes[nextEdge.endNodeId]!;
-        // NOTE: This calculates straight-line (Haversine) distance. 
-        // For road distance, your Edge class should store 'roadDistanceKm'
         final double edgeDistanceKm = calculateDistance(
           edgeStartNode.position, 
           edgeEndNode.position
@@ -207,8 +205,6 @@ class RouteFinder {
         currentDistanceKm += edgeDistanceKm; 
         
         // ❌ FIX 2: Accumulate Duration using the edge's weight (time in minutes).
-        // The weight (nextEdge.weight) is already the calculated time for this segment
-        // (Distance/Speed), so we just add it directly.
         currentDurationMin += nextEdge.weight; 
 
         // Final Segment: If this is the last edge, finalize the JEEPNEY segment

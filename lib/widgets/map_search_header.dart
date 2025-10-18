@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// The custom search bar and settings icon for the top of the map screen.
+/// The custom search bar for the top of the map screen (Settings icon removed).
 class MapSearchHeader extends StatefulWidget {
   final Color primaryColor;
   final List<String> nodeNames;
@@ -112,9 +112,6 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
       color: Colors.black,
     );
 
-    // Note: Removed the redundant queryPart/suggestionPart calculation from build,
-    // as the suggestion logic relies on placing the full faint text behind the field.
-
     return Row(
       children: [
         Expanded(
@@ -180,7 +177,7 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
                 // Explicit button to accept the suggestion and search
                 if (_suggestion != null && _controller.text.isNotEmpty)
                   GestureDetector(
-                    onTap: _acceptSuggestionAndSearch, // Uses the new dedicated method
+                    onTap: _acceptSuggestionAndSearch, 
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8.0),
                       child: Icon(Icons.arrow_forward,
@@ -191,23 +188,7 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
-        // Settings Gear Icon (Unchanged)
-        Container(
-          padding: const EdgeInsets.all(12.0),
-          decoration: BoxDecoration(
-            color: widget.primaryColor,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.settings, color: Colors.white, size: 24),
-        ),
+
       ],
     );
   }
