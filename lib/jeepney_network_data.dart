@@ -1,16 +1,12 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
-import 'graph_models.dart'; // Contains Node, Edge, JeepneyGraph
-import 'geo_utils.dart'; // Contains calculateDistance AND calculateJeepneyWeight
-import 'pathfinding_config.dart'; // Contains configuration constants like JEEPNEY_AVG_SPEED_KM_PER_MIN
+import 'graph_models.dart';
+import 'geo_utils.dart';
+import 'pathfinding_config.dart';
 
-// --- GLOBAL GRAPH VARIABLES (Needed by RouteFinder) ---
-// Note: We use late final because these are initialized by the static maps below.
 late final Map<String, Node> allNodes = _defineAllNodes();
 late final JeepneyGraph jeepneyNetwork = _buildJeepneyGraph();
 
-// --- STEP 1: YOUR NODE DATA DEFINITION (UPDATED WITH FINALIZED COORDINATES) ---
-// Function to define all your fixed locations (N01-N44, including skipped numbers).
 Map<String, Node> _defineAllNodes() {
   return {
     // 1. Bayanihan area
@@ -187,7 +183,7 @@ Map<String, Node> _defineAllNodes() {
         position: const LatLng(15.12968339481647, 120.57538621875474),
         name: 'Overpass Intersection'),
 
-    // 6. New nodes from the extended list (N41, N42, N43, N44)
+    // 6. New nodes from the extended list
     'N41': Node(
         id: 'N41',
         position: const LatLng(15.144474509315053, 120.55938943379525),
@@ -271,7 +267,7 @@ Map<String, Node> _defineAllNodes() {
     'N64': Node(
         id: 'N64',
         position: const LatLng(15.145006023676963, 120.58871255687673),
-        name: 'Pampang Public Market Entrance'), // Duplicate of N41
+        name: 'Pampang Public Market Entrance'),
     'N65': Node(
         id: 'N65',
         position: const LatLng(15.145514715514064, 120.5875223098476),
@@ -397,7 +393,7 @@ Map<String, Node> _defineAllNodes() {
       name: 'Pampang Barangay Hall',
     ),
     'N94': Node(
-      id:'N94',
+      id: 'N94',
       position: const LatLng(15.145087133917675, 120.5645758183711),
       name: 'Timog Park Subd Gate 1'
     ),
@@ -466,7 +462,7 @@ Map<String, Node> _defineAllNodes() {
       position: const LatLng(15.170275806728705, 120.52783824781157),
       name: 'Jose P Laurel Ave',
     ),
-    'N108': Node( // Renamed the next entries to N108 and N109 to continue sequential numbering
+    'N108': Node(
       id: 'N108',
       position: const LatLng(15.172601476676132, 120.52186767026078),
       name: 'Jose P Laurel Ave',
@@ -484,93 +480,38 @@ Map<String, Node> _defineAllNodes() {
   };
 }
 
-// --- STEP 2: JEEPNEY ROUTE EDGE DEFINITIONS (UNCHANGED) ---
 final List<Map<String, dynamic>> rawEdgeDefinitions = [
-  // 1. MAIN GATE - FRIENDSHIP (Sand) (Simple Route: Outbound/Inbound)
+  // 1. MAIN GATE - FRIENDSHIP (Sand)
   {
     'route': 'MAIN GATE - FRIENDSHIP (Sand) Outbound',
     'color': const Color(0xFFC2B280),
     'nodes': [
-      'N03',
-      'N48',
-      'N49',
-      'N50',
-      'N51',
-      'N52',
-      'N53',
-      'N54',
-      'N55',
-      'N56',
-      'N57',
-      'N58',
-      'N35'
+      'N03', 'N48', 'N49', 'N50', 'N51', 'N52', 'N53', 'N54', 'N55', 'N56',
+      'N57', 'N58', 'N35'
     ]
   },
   {
     'route': 'MAIN GATE - FRIENDSHIP (Sand) Inbound',
     'color': const Color(0xFFC2B280),
     'nodes': [
-      'N35',
-      'N58',
-      'N57',
-      'N56',
-      'N55',
-      'N54',
-      'N53',
-      'N52',
-      'N51',
-      'N50',
-      'N49',
-      'N48',
-      'N03'
+      'N35', 'N58', 'N57', 'N56', 'N55', 'N54', 'N53', 'N52', 'N51', 'N50',
+      'N49', 'N48', 'N03'
     ]
   },
 
-// 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop Route: Single Entry)
+  // 2. C’POINT - BALIBAGO - H’WAY (Grey) (Loop)
   {
     'route': 'C’POINT - BALIBAGO - H’WAY (Grey) Loop',
     'color': const Color(0xFF808080),
     'nodes': [
-      'N34',
-      'N01',
-      'N05', // N35 removed from this section of the loop
-      'N06',
-      'N11',
-      'N12',
-      'N88', // NEW Node
-      'N14',
-      'N15',
-      'N65',
-      'N64',
-      'N16',
-      'N71',
-      'N33',
-      'N22',
-      'N85', // Defined in previous step
-      'N26',
-      'N83', // Defined in previous step
-      'N84', // Defined in previous step
-      'N43',
-      'N89', // NEW Node
-      'N90',
-      'N20',
-      'N33', // Second Pass
-      'N71',
-      'N16',
-      'N64',
-      'N65',
-      'N15',
-      'N14',
-      'N88', // Return Loop Node
-      'N12',
-      'N11',
-      'N06',
-      'N05',
-      'N01' // Last node in the list. Loop logic connects N01 to N34.
+      'N34', 'N01', 'N05', 'N06', 'N11', 'N12', 'N88', 'N14', 'N15', 'N65',
+      'N64', 'N16', 'N71', 'N33', 'N22', 'N85', 'N26', 'N83', 'N84', 'N43',
+      'N89', 'N90', 'N20', 'N33', 'N71', 'N16', 'N64', 'N65', 'N15', 'N14',
+      'N88', 'N12', 'N11', 'N06', 'N05', 'N01'
     ]
   },
 
-  // 3. SM CITY - MAIN GATE – DAU (Various) (Simple Route: Outbound/Inbound)
+  // 3. SM CITY - MAIN GATE – DAU (Various)
   {
     'route': 'SM CITY - MAIN GATE – DAU (Various) Outbound',
     'color': const Color.fromARGB(255, 63, 63, 63),
@@ -582,392 +523,144 @@ final List<Map<String, dynamic>> rawEdgeDefinitions = [
     'nodes': ['N02', 'N05', 'N01', 'N34']
   },
 
-// 4. CHECKPOINT - HENSONVILLE - HOLY (White) (Loop Route: Single Entry)
+  // 4. CHECKPOINT - HENSONVILLE - HOLY (White) (Loop)
   {
     'route': 'CHECKPOINT - HENSONVILLE - HOLY (White) Loop',
     'color': Colors.white,
     'nodes': [
-      'N35', // START
-      'N76',
-      'N39',
-      'N38',
-      'N77',
-      'N78',
-      'N37',
-      'N14',
-      'N15',
-      'N65',
-      'N64',
-      'N16',
-      'N71',
-      'N33',
-      'N22',
-      'N89', // Requires N89 definition
-      'N23',
-      'N24',
-      'N29',
-      'N68',
-      'N69',
-      'N44',
-      'N20',
-      'N33',
-      'N71',
-      'N16',
-      'N64',
-      'N65',
-      'N15',
-      'N14',
-      'N37',
-      'N78',
-      'N77',
-      'N38',
-      'N39',
-      'N76' // END (Loop logic connects N76 back to N35)
+      'N35', 'N76', 'N39', 'N38', 'N77', 'N78', 'N37', 'N14', 'N15', 'N65',
+      'N64', 'N16', 'N71', 'N33', 'N22', 'N89', 'N23', 'N24', 'N29', 'N68',
+      'N69', 'N44', 'N20', 'N33', 'N71', 'N16', 'N64', 'N65', 'N15', 'N14',
+      'N37', 'N78', 'N77', 'N38', 'N39', 'N76'
     ]
   },
 
-// 5. SAPANG BATO – ANGLES (Maroon) (Simple Route: Outbound/Inbound)
-{
-  'route': 'SAPANG BATO – ANGELES (Maroon) Outbound',
-  'color': const Color(0xFF800000), 
-  'nodes': [
-    'N04', 
-    'N110',
-    'N109',
-    'N108',
-    'N107',
-    'N106',
-    'N105',
-    'N104',
-    'N103',
-    'N102',
-    'N101',
-    'N03',
-    'N100',
-    'N99',
-    'N98',
-    'N97',
-    'N96',
-    'N95',
-    'N41',
-    'N94',
-    'N93',
-    'N92',
-    'N91',
-    'N14',
-    'N15', 
-  ],
-},
-{
-  'route': 'SAPANG BATO – ANGELES (Maroon) Inbound',
-  'color': const Color(0xFF800000),
-  'nodes': [
-    'N15',
-    'N14',
-    'N91',
-    'N92',
-    'N93',
-    'N94',
-    'N41',
-    'N95',
-    'N96',
-    'N97',
-    'N98',
-    'N99',
-    'N100',
-    'N03',
-    'N101',
-    'N102',
-    'N103',
-    'N104',
-    'N105',
-    'N106',
-    'N107',
-    'N108',
-    'N109',
-    'N110',
-    'N04',
-  ],
-},
+  // 5. SAPANG BATO – ANGLES (Maroon)
+  {
+    'route': 'SAPANG BATO – ANGELES (Maroon) Outbound',
+    'color': const Color(0xFF800000),
+    'nodes': [
+      'N04', 'N110', 'N109', 'N108', 'N107', 'N106', 'N105', 'N104', 'N103',
+      'N102', 'N101', 'N03', 'N100', 'N99', 'N98', 'N97', 'N96', 'N95', 'N41',
+      'N94', 'N93', 'N92', 'N91', 'N14', 'N15',
+    ],
+  },
+  {
+    'route': 'SAPANG BATO – ANGELES (Maroon) Inbound',
+    'color': const Color(0xFF800000),
+    'nodes': [
+      'N15', 'N14', 'N91', 'N92', 'N93', 'N94', 'N41', 'N95', 'N96', 'N97',
+      'N98', 'N99', 'N100', 'N03', 'N101', 'N102', 'N103', 'N104', 'N105',
+      'N106', 'N107', 'N108', 'N109', 'N110', 'N04',
+    ],
+  },
 
-  // 6. CHECKPOINT - HOLY - HIGHWAY (Lavander) (Loop Route: Single Entry) - UPDATED
+  // 6. CHECKPOINT - HOLY - HIGHWAY (Lavander) (Loop)
   {
     'route': 'CHECKPOINT - HOLY - HIGHWAY (Lavander) Loop',
     'color': Colors.indigo,
     'nodes': [
-      'N34',
-      'N01',
-      'N05',
-      'N06',
-      'N11',
-      'N12',
-      'N74',
-      'N73',
-      'N75',
-      'N64',
-      'N16',
-      'N71',
-      'N33',
-      'N22',
-      'N85', // 293 Rizal Street Ext
-      'N26', // Rizal Street Ext
-      'N83', // Villa Teressa Gate
-      'N84', // Nepo Mall
-      'N23',
-      'N24',
-      'N29',
-      'N68',
-      'N69',
-      'N25',
-      'N72',
-      'N19',
-      'N18',
-      'N17',
-      'N13',
-      'N12',
-      'N11',
-      'N06',
-      'N05',
-      'N01' // Last node in the sequence
-    ] // The Loop logic will connect N01 back to N34
+      'N34', 'N01', 'N05', 'N06', 'N11', 'N12', 'N74', 'N73', 'N75', 'N64',
+      'N16', 'N71', 'N33', 'N22', 'N85', 'N26', 'N83', 'N84', 'N23', 'N24',
+      'N29', 'N68', 'N69', 'N25', 'N72', 'N19', 'N18', 'N17', 'N13', 'N12',
+      'N11', 'N06', 'N05', 'N01'
+    ]
   },
 
-// 7. MARISOL - PAMPANG (Green)
+  // 7. MARISOL - PAMPANG (Green)
   {
     'route': 'MARISOL - PAMPANG (Green) Outbound',
     'color': Colors.green,
     'nodes': [
-      'N15',
-      'N65',
-      'N64',
-      'N16',
-      'N71',
-      'N33',
-      'N22',
-      'N89',
-      'N23',
-      'N24',
-      'N29',
-      'N68',
-      'N69',
-      'N25',
-      'N72',
-      'N19',
-      'N18',
-      'N17',
-      'N13'
+      'N15', 'N65', 'N64', 'N16', 'N71', 'N33', 'N22', 'N89', 'N23', 'N24',
+      'N29', 'N68', 'N69', 'N25', 'N72', 'N19', 'N18', 'N17', 'N13'
     ]
   },
   {
     'route': 'MARISOL - PAMPANG (Green) Inbound',
     'color': Colors.green,
     'nodes': [
-      'N13',
-      'N17',
-      'N18',
-      'N19',
-      'N72',
-      'N25',
-      'N69',
-      'N68',
-      'N29',
-      'N24',
-      'N23',
-      'N89',
-      'N22',
-      'N33',
-      'N71',
-      'N16',
-      'N64',
-      'N65',
-      'N15'
+      'N13', 'N17', 'N18', 'N19', 'N72', 'N25', 'N69', 'N68', 'N29', 'N24',
+      'N23', 'N89', 'N22', 'N33', 'N71', 'N16', 'N64', 'N65', 'N15'
     ]
   },
   {
-    'route': 'PANDANG - PAMPANG (Blue) Loop', // Route name shown on map or list
-    'color': Colors.blue, // Display color for this route
+    'route': 'PANDANG - PAMPANG (Blue) Loop',
+    'color': Colors.blue,
     'nodes': [
-      // Ordered list of waypoints or stops
-      'N07',
-      "N81",
-      'N80',
-      'N08',
-      'N67',
-      'N18',
-      'N19',
-      'N72',
-      'N44',
-      'N20',
-      'N33',
-      'N22',
-      'N89',
-      'N23',
-      'N24',
-      'N29',
-      'N68',
-      'N69',
-      'N25',
-      'N72',
-      'N19',
-      'N18',
-      'N67',
-      'N08',
-      'N80', // <- Must exist in _defineAllNodes() with coordinates
-      'N81', // <- Must exist in _defineAllNodes() with coordinates
-      'N07' // Completes the loop (route returns to starting point)
+      'N07', 'N81', 'N80', 'N08', 'N67', 'N18', 'N19', 'N72', 'N44', 'N20',
+      'N33', 'N22', 'N89', 'N23', 'N24', 'N29', 'N68', 'N69', 'N25', 'N72',
+      'N19', 'N18', 'N67', 'N08', 'N80', 'N81', 'N07'
     ]
   },
 
-// 9. SUNSET - NEPO (Orange)
+  // 9. SUNSET - NEPO (Orange)
   {
     'route': 'SUNSET - NEPO (Orange) Loop',
     'color': Colors.deepOrange,
     'nodes': [
-      'N27',
-      'N82',
-      'N40',
-      'N87',
-      'N86',
-      'N26',
-      'N83',
-      'N84',
-      'N43',
-      'N85',
-      'N26',
-      'N86',
-      'N87',
-      'N40',
-      'N82',
-      'N27'
+      'N27', 'N82', 'N40', 'N87', 'N86', 'N26', 'N83', 'N84', 'N43', 'N85',
+      'N26', 'N86', 'N87', 'N40', 'N82', 'N27'
     ]
   },
 
-// 10. VILLA - PAMPANG SM TELABESTAGEN (Yellow)
+  // 10. VILLA - PAMPANG SM TELABESTAGEN (Yellow)
   {
     'route': 'VILLA - PAMPANG SM TELABESTAGEN (Yellow) Outbound',
     'color': Colors.yellow,
     'nodes': [
-      'N15',
-      'N65',
-      'N64',
-      'N16',
-      'N63',
-      'N62',
-      'N61',
-      'N19',
-      'N24',
-      'N29',
-      'N60',
-      'N59',
-      'N30',
-      'N31',
-      'N32',
-      'N28'
+      'N15', 'N65', 'N64', 'N16', 'N63', 'N62', 'N61', 'N19', 'N24', 'N29',
+      'N60', 'N59', 'N30', 'N31', 'N32', 'N28'
     ]
   },
   {
     'route': 'VILLA - PAMPANG SM TELABESTAGEN (Yellow) Inbound',
     'color': Colors.yellow,
     'nodes': [
-      'N28',
-      'N32',
-      'N31',
-      'N30',
-      'N59',
-      'N60',
-      'N68',
-      'N69',
-      'N25',
-      'N72',
-      'N19',
-      'N61',
-      'N62',
-      'N63',
-      'N16',
-      'N64',
-      'N65',
-      'N15'
+      'N28', 'N32', 'N31', 'N30', 'N59', 'N60', 'N68', 'N69', 'N25', 'N72',
+      'N19', 'N61', 'N62', 'N63', 'N16', 'N64', 'N65', 'N15'
     ]
   },
 
-// 11. CAPAYA - ANGELES (Pink) - CONVERTED TO A LOOP
-{
-  'route': 'CAPAYA - ANGELES (Pink) Loop',
-  'color': Colors.pink,
-  'nodes': [
-    'N10', // START
-    'N09',
-    'N70',
-    'N66',
-    'N08',
-    'N67',
-    'N18',
-    'N19',
-    'N72',
-    'N44',
-    'N20',
-    'N33',
-    'N22',
-    'N89', // Requires N89 definition
-    'N23',
-    'N24',
-    'N29',
-    'N68',
-    'N69',
-    'N25',
-    'N72', // Loopback segment starts here
-    'N19',
-    'N18',
-    'N67',
-    'N08',
-    'N66',
-    'N70',
-    'N09',
-    'N10' // END (Loop logic connects N10 back to N10)
-  ]
-},
-
+  // 11. CAPAYA - ANGELES (Pink) - CONVERTED TO A LOOP
+  {
+    'route': 'CAPAYA - ANGELES (Pink) Loop',
+    'color': Colors.pink,
+    'nodes': [
+      'N10', 'N09', 'N70', 'N66', 'N08', 'N67', 'N18', 'N19', 'N72', 'N44',
+      'N20', 'N33', 'N22', 'N89', 'N23', 'N24', 'N29', 'N68', 'N69', 'N25',
+      'N72', 'N19', 'N18', 'N67', 'N08', 'N66', 'N70', 'N09', 'N10'
+    ]
+  },
 ];
 
-/// Extracts the simple color/route name from the detailed route string.
-/// E.g., 'MAIN GATE - FRIENDSHIP (Sand) Outbound' -> 'Sand'
 String _extractColorName(String routeName) {
   final regex = RegExp(r'\((.*?)\)');
   final match = regex.firstMatch(routeName);
   if (match != null && match.groupCount >= 1) {
     return match.group(1)!.trim();
   }
-  // Fallback if no parentheses are found, though all routes seem to use parentheses.
   return routeName.split(' ').last;
 }
 
 List<String> get uniqueNodeNames {
-  // Access the values of the already initialized map 'allNodes'
   final allNames = allNodes.values.map((node) => node.name).toList();
-  
-  // Use a Set to ensure all names are unique, then return as a List
   return allNames.toSet().toList();
 }
-// --- STEP 3: GRAPH BUILDING (Automatic) ---
 
-/// Builds the final JeepneyGraph from the defined nodes and raw edge sequences.
 JeepneyGraph _buildJeepneyGraph() {
   final Map<String, List<Edge>> adjacencyList = {};
 
-  // Initialize adjacency list for every node
   for (var nodeId in allNodes.keys) {
     adjacencyList[nodeId] = [];
   }
 
-  // Populate the adjacency list based on raw edge definitions
   for (var routeDef in rawEdgeDefinitions) {
     final routeName = routeDef['route'] as String;
     final routeColor = routeDef['color'] as Color;
     final nodeIds = routeDef['nodes'] as List<String>;
-    final routeColorName =
-        _extractColorName(routeName); // Extract the simple name
+    final routeColorName = _extractColorName(routeName);
 
-    // Iterate through the sequential nodes to create directed edges
     for (int i = 0; i < nodeIds.length - 1; i++) {
       final startId = nodeIds[i];
       final endId = nodeIds[i + 1];
@@ -976,23 +669,22 @@ JeepneyGraph _buildJeepneyGraph() {
         final startPos = allNodes[startId]!.position;
         final endPos = allNodes[endId]!.position;
 
-        // Calculate time cost (weight)
+        // Calculate time cost (weight) using straight-line distance.
+        // NOTE: This will only be accurate if the stops are very close, 
+        // otherwise, it represents the minimum possible distance.
         final weight = calculateJeepneyWeight(startPos, endPos);
 
-        // Create the directed edge
         final edge = Edge(
           startNodeId: startId,
           endNodeId: endId,
           weight: weight,
           routeName: routeName,
-          routeColorName:
-              routeColorName, // <-- FIX: Passing the required string name
-          // PASSING THE ROUTE COLOR AND POLYLINE POINTS
+          routeColorName: routeColorName,
           routeColor: routeColor,
-          polylinePoints: [startPos, endPos],
+          // Currently, polyline points are just the start and end node positions.
+          polylinePoints: [startPos, endPos], 
         );
 
-        // Add the edge to the starting node's list
         adjacencyList.putIfAbsent(startId, () => []).add(edge);
       } else {
         print(
@@ -1000,7 +692,7 @@ JeepneyGraph _buildJeepneyGraph() {
       }
     }
 
-    // --- Special Handling for Loop Routes ---
+    // Special Handling for Loop Routes
     if (routeName.contains('Loop') && nodeIds.length >= 2) {
       final lastId = nodeIds.last;
       final firstId = nodeIds.first;
@@ -1028,7 +720,6 @@ JeepneyGraph _buildJeepneyGraph() {
     }
   }
 
-  // Finally, build and return the graph
   return JeepneyGraph(
     nodes: allNodes,
     adjacencyList: adjacencyList,

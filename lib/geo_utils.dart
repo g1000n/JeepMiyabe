@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'pathfinding_config.dart'; // Import constant JEEPNEY_AVG_SPEED_KM_PER_MIN
 
 /// Calculates the distance between two LatLng points using the Haversine formula (km).
+/// Calculates the distance between two LatLng points using the Haversine formula (km).
 double calculateDistance(LatLng point1, LatLng point2) {
-  const double earthRadiusKm = 6371.0;
+  // Use the mean radius of the Earth (WGS-84 standard) for better precision.
+  const double earthRadiusKm = 6371.0088; // Original was 6371.0
 
   final double dLat = _degreesToRadians(point2.latitude - point1.latitude);
   final double dLon = _degreesToRadians(point2.longitude - point1.longitude);
@@ -12,9 +14,13 @@ double calculateDistance(LatLng point1, LatLng point2) {
   final double lat1Rad = _degreesToRadians(point1.latitude);
   final double lat2Rad = _degreesToRadians(point2.latitude);
 
+  // Haversine formula
   final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-      math.sin(dLon / 2) * math.sin(dLon / 2) * math.cos(lat1Rad) * math.cos(lat2Rad);
-  
+      math.sin(dLon / 2) *
+          math.sin(dLon / 2) *
+          math.cos(lat1Rad) *
+          math.cos(lat2Rad);
+
   final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 
   return earthRadiusKm * c; // Distance in kilometers
@@ -42,7 +48,7 @@ String getApproximateLocationName(LatLng position) {
 double calculateJeepneyWeight(LatLng point1, LatLng point2) {
   final distanceKm = calculateDistance(point1, point2);
   // Use the constant defined in pathfinding_config.dart
-  return distanceKm / JEEPNEY_AVG_SPEED_KM_PER_MIN; 
+  return distanceKm / JEEPNEY_AVG_SPEED_KM_PER_MIN;
 }
 
 // --- END OF MISSING FUNCTION ---
@@ -63,17 +69,18 @@ List<LatLng> calculateStaggeredPoints(
   final LatLng end = points.last;
 
   // Determine the offset amount. We use 5 meters (0.005 km) as the base offset.
-  const double baseOffsetKm = 0.005; 
-  
+  const double baseOffsetKm = 0.005;
+
   // Calculate the total required offset based on its position in the stack (index)
   // Example: Center line (index=0) is offset 0. Index=1 is offset 5m, Index=2 is offset -5m, Index=3 is offset 10m, etc.
-  final double signedOffsetKm = 
-      (index == 0) ? 0.0 : baseOffsetKm * (index.isOdd ? (index + 1) ~/ 2 : -index ~/ 2);
+  final double signedOffsetKm = (index == 0)
+      ? 0.0
+      : baseOffsetKm * (index.isOdd ? (index + 1) ~/ 2 : -index ~/ 2);
 
   // Convert km offset to degrees (approximation for LatLng adjustment)
   // 1 degree of latitude is roughly 111 km. 1 degree of longitude varies.
   // We'll use a simplified degree approximation for staggering effect.
-  final double offsetDegrees = signedOffsetKm / 111.0; 
+  final double offsetDegrees = signedOffsetKm / 111.0;
 
   // Calculate the angle (bearing) of the line segment
   final double lat1 = _degreesToRadians(start.latitude);
@@ -84,7 +91,8 @@ List<LatLng> calculateStaggeredPoints(
   final double dLon = lon2 - lon1;
   final double bearingRad = math.atan2(
     math.sin(dLon) * math.cos(lat2),
-    math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLon),
+    math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon),
   );
 
   // Perpendicular angle for offset

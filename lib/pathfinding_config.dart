@@ -3,7 +3,7 @@
 
 /// Average speed of a jeepney in km/min.
 /// (Example: 18 km/h = 0.3 km/min. Use a realistic estimate for city travel.)
-const double JEEPNEY_AVG_SPEED_KM_PER_MIN = 0.30; 
+const double JEEPNEY_AVG_SPEED_KM_PER_MIN = 0.45; 
 
 /// Estimated time (in minutes) a passenger waits for a connecting jeepney
 /// when transferring between routes. This is a crucial cost penalty.

@@ -1,43 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart'; 
+import 'package:geolocator/geolocator.dart';
 import 'dart:collection';
 import 'package:collection/collection.dart';
 import 'package:flutter/scheduler.dart';
-
-// --- Imports for Extracted and External Logic ---
-// NOTE: These files must exist in your project, even if as simple mocks.
-import '../jeepney_network_data.dart'; // allNodes, jeepneyNetwork, uniqueNodeNames
-import '../graph_models.dart'; // Node, Edge
-import '../geo_utils.dart'; // calculateStaggeredPoints
-import '../route_segment.dart'; // RouteSegment, SegmentType
-import '../route_finder.dart'; // RouteFinder
+import '../jeepney_network_data.dart';
+import '../graph_models.dart';
+import '../geo_utils.dart';
+import '../route_segment.dart';
+import '../route_finder.dart';
 import '../widgets/route_info_bubble.dart';
 import '../widgets/map_search_header.dart';
 import '../widgets/route_action_button.dart';
 import '../widgets/map_selection_header.dart';
-import '../widgets/route_details_sheet.dart'; 
+import '../widgets/route_details_sheet.dart';
 import '../widgets/instruction_tile.dart';
 
-
-// --- Supabase/Auth/UUID (kept for type definitions/API calls) ---
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // For location icon
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 final supabase = Supabase.instance.client;
 
-// Global state variables for the overlays
+// global state variables for the overlays
 int _currentStepIndex = 0;
 bool _showStepOverlay = false;
 
-// --- STATE FOR CONFIRMATION & FAVORITES ---
+// state for confirmation and favorites
 bool _isConfirmed = false;
 bool _isFavoriteTo = false;
 
-// --- COLOR CONSTANTS ---
+// color constants
 const Color kPrimaryColor = Color(0xFFE4572E);
 const Color kHeaderColor = Color(0xFFFFFFFF);
-const Color kLocationButtonColor = Color(0xFF007AFF); // A nice blue for location
+const Color kLocationButtonColor =
+    Color(0xFF007AFF); // A nice blue for location
 
 class PreSetDestination {
   final String name;
@@ -60,10 +56,9 @@ class PreSetDestination {
   int get hashCode => name.hashCode ^ latitude.hashCode ^ longitude.hashCode;
 }
 
-// --- DISCLAIMER CONSTANT ---
+// disclaimer constant
 const String kRouteDisclaimer =
     "Disclaimer: Routes prioritize the shortest mathematical cost (time/distance). This may suggest a path with transfers over a direct single-jeep route if the overall calculated cost is lower. Always confirm routes locally, as direct options may exist that are not shown here.";
-// ---------------------------------------------------------------------------
 
 class MapScreen extends StatefulWidget {
   final double initialLatitude;
@@ -77,7 +72,7 @@ class MapScreen extends StatefulWidget {
     this.initialLatitude = 15.1466,
     this.initialLongitude = 120.5960,
     this.initialZoom = 13.5,
-    this.toPlace, 
+    this.toPlace,
   });
 
   @override
@@ -95,9 +90,9 @@ class _MapScreenState extends State<MapScreen> {
   List<RouteSegment> _currentRoute = [];
   bool _isSearching = false;
   bool _isSelectingPoints = false;
-  bool _isLocating = false; // Loading state for geolocator
+  bool _isLocating = false; // loading state for geolocator
 
-  // 🛑 MAP BOUNDARY CONSTRAINTS 🛑
+  // map boundary constraints
   static final LatLngBounds _cameraBounds = LatLngBounds(
     southwest: const LatLng(15.05, 120.50),
     northeast: const LatLng(15.25, 120.70),
@@ -162,39 +157,43 @@ class _MapScreenState extends State<MapScreen> {
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied. Please enable them in settings.');
+        throw Exception(
+            'Location permissions are permanently denied. Please enable them in settings.');
       }
 
       // Get the current position
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high, 
-        timeLimit: const Duration(seconds: 10), 
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
       );
 
-      final LatLng currentLocation = LatLng(position.latitude, position.longitude);
+      final LatLng currentLocation =
+          LatLng(position.latitude, position.longitude);
 
       setState(() {
         // 2. SET THE FIXED START POINT MARKER
-        _startPoint = currentLocation; 
+        _startPoint = currentLocation;
         _updateMarkers(); // Update markers to show the new start point
 
         // 3. Move camera to the new location
         _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(currentLocation, 17.0), // Center and zoom in
+          CameraUpdate.newLatLngZoom(
+              currentLocation, 17.0), // Center and zoom in
         );
 
         // 4. Provide explicit user feedback
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Start Location set to your current GPS position. Now tap map for Destination.')),
+              content: Text(
+                  'Start Location set to your current GPS position. Now tap map for Destination.')),
         );
       });
-
     } catch (e) {
       // Handle various exceptions from geolocator
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Could not get location: ${e.toString().replaceAll("Exception: ", "")}')),
+            content: Text(
+                'Could not get location: ${e.toString().replaceAll("Exception: ", "")}')),
       );
     } finally {
       // 5. Turn off loading state
@@ -334,7 +333,7 @@ class _MapScreenState extends State<MapScreen> {
           infoWindow: const InfoWindow(title: 'Start Location'),
           // This is the Green Pin marker
           icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), 
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           zIndex: 10,
           alpha: 1.0,
         ),
@@ -356,8 +355,12 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _saveRouteHistory() async {
     final String? userId = supabase.auth.currentUser?.id;
-    if (userId == null || _currentRoute.isEmpty || _startPoint == null || _endPoint == null) {
-      debugPrint('🛑 HISTORY SAVE FAILED: User not authenticated or data incomplete.');
+    if (userId == null ||
+        _currentRoute.isEmpty ||
+        _startPoint == null ||
+        _endPoint == null) {
+      debugPrint(
+          '🛑 HISTORY SAVE FAILED: User not authenticated or data incomplete.');
       return;
     }
 
@@ -389,6 +392,10 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _findRoute() async {
     if (_startPoint == null || _endPoint == null) return;
 
+    debugPrint(
+        'START POINT: Lat: ${_startPoint!.latitude}, Lng: ${_startPoint!.longitude}');
+    debugPrint(
+        'END POINT:   Lat: ${_endPoint!.latitude}, Lng: ${_endPoint!.longitude}');
     setState(() {
       _isSearching = true;
       _currentRoute.clear();
@@ -634,7 +641,7 @@ class _MapScreenState extends State<MapScreen> {
                 child: MapSearchHeader(
                   primaryColor: primaryColor,
                   nodeNames: uniqueNodeNames,
-                  onSearch: onSearchCallback, 
+                  onSearch: onSearchCallback,
                 ),
               ),
             ),
@@ -666,31 +673,34 @@ class _MapScreenState extends State<MapScreen> {
               enableSelection: _enablePointSelection,
             ),
           ),
-          
+
           // 🌟 "My Location" Button (Sets the Start Point marker and fills "From:") 🌟
           Positioned(
             bottom: 30, // Positioned above the Route Details FAB
             right: 20,
             child: FloatingActionButton(
               heroTag: 'my_location_fab',
-              onPressed: _isLocating ? null : _setStartToCurrentLocation, // CALLS NEW FUNCTION
+              onPressed: _isLocating
+                  ? null
+                  : _setStartToCurrentLocation, // CALLS NEW FUNCTION
               backgroundColor: _isLocating ? Colors.grey : kLocationButtonColor,
               foregroundColor: Colors.white,
-              child: _isLocating 
+              child: _isLocating
                   ? const SizedBox(
-                      width: 24, 
-                      height: 24, 
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
                   : const Icon(FontAwesomeIcons.locationDot),
             ),
           ),
 
-
           // Button to bring back the full instructions sheet
           if (_isConfirmed && _currentRoute.isNotEmpty && !_showStepOverlay)
             Positioned(
-              bottom: 30, 
-              left: 20, // Move this button to the left to avoid overlap with My Location FAB
+              bottom: 30,
+              left:
+                  20, // Move this button to the left to avoid overlap with My Location FAB
               child: FloatingActionButton.extended(
                 heroTag: 'show_instructions_sheet',
                 onPressed: _showInstructionsSheet,
