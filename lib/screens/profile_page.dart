@@ -60,22 +60,14 @@ class _ProfilePageState extends State<ProfilePage> {
       child: SafeArea(
         child: Column(
           children: [
-            // Header Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: kPrimaryColor),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
+            // Removed the Header Section containing the back button in previous step
 
             // Profile Avatar + Name Section
             Column(
               children: [
+                // Add some top padding/spacing now that the header is gone
+                SizedBox(height: 30), 
+
                 CircleAvatar(
                   radius: MediaQuery.of(context).size.width * 0.12,
                   backgroundColor: kPrimaryColor,
@@ -90,11 +82,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: kPrimaryColor,
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  '@gyawnnnnn', // TODO: Fetch from Supabase if needed
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
+                // --- REMOVED: The @username section is now gone ---
+                // const SizedBox(height: 4),
+                // const Text(
+                //   '@gyawnnnnn', // TODO: Fetch from Supabase if needed
+                //   style: TextStyle(color: Colors.grey, fontSize: 14),
+                // ),
               ],
             ),
 
