@@ -8,21 +8,21 @@ const Color kCardColor = Color(0xFFFC775C);
 // --- NEW DATA STRUCTURE FOR DESCRIPTIONS ---
 const Map<String, String> kRouteDescriptions = {
   'Main Gate - Friendship':
-      'The Main Gate - Friendship jeepney runs along a key route, providing essential transportation between the Clark Main Gate and Friendship Highway. This route passes through commercial areas and is frequently used by commuters and visitors. This is the detailed description of the route.',
+      'The Main Gate - Friendship jeepney runs along a key route, providing essential transportation between the Clark Main Gate and Friendship Highway. This route passes through commercial areas, including malls, offices, and eateries, and is frequently used by commuters, students, and visitors. It also connects travelers to nearby transport terminals and bus stops.',
   'C-Point - Balibago - H\'way':
-      'This C-Point - Balibago - H\'way route connects the entertainment district of Balibago with major hubs like C-Point, running along the main highway. It is a vital link for nightlife, shopping, and general transit in the city center.',
+      'This C-Point - Balibago - H\'way route connects the entertainment district of Balibago with major hubs like C-Point, running along the main highway. It is a vital link for nightlife, shopping, and general transit in the city center. Passengers often use it to access popular restaurants, bars, and local shops along the way.',
   'SM City - Main Gate - Dau':
       'Serving as a major commercial link, the SM City - Main Gate - Dau route connects SM City Clark, the Clark Main Gate, and the Dau common terminal. It is one of the busiest routes, connecting city shoppers and inter-provincial travelers.',
   'Checkpoint - Hensonville - Holy':
-      'Connecting Checkpoint to the residential and educational areas of Hensonville and Holy Angel University, this route is popular with students and residents of the inner subdivisions.',
+      'Connecting Checkpoint to the residential and educational areas of Hensonville and Holy Angel University, this route is popular with students and residents of the inner subdivisions. It passes by schools, community centers, and local shops, making it an essential daily route for learners and local families.',
   'Sapang Bato - Angles':
-      'The Sapang Bato - Angeles route offers transport from the more distant Sapang Bato barangay into the main Angeles City center. It\'s a longer route that serves suburban and rural commuters.',
+      'The Sapang Bato - Angeles route offers transport from the more distant Sapang Bato barangay into the main Angeles City center. It\'s a longer route that serves suburban and rural commuters, passing through residential neighborhoods, small commercial areas, and key junctions connecting to other city routes.',
   'Checkpoint - Holy - Highway':
-      'This specific route services Checkpoint, Holy, and the Highway, primarily facilitating movement along these major thoroughfares and connecting key points of interest and transport hubs.',
+      'This specific route services Checkpoint, Holy, and the Highway, primarily facilitating movement along these major thoroughfares and connecting key points of interest and transport hubs. It is heavily used by Holy Angel University students, local employees, and shoppers accessing nearby businesses and facilities.',
   'Marisol - Pampang':
-      'This route links the Marisol village area to the Pampang public market and surrounding commercial zones. It\'s primarily a local route focused on residential and market access.',
+      'This route links the Marisol village area to the Pampang public market and surrounding commercial zones. It is primarily a local route focused on residential neighborhoods, school access, and market visits, making it a daily essential for local commuters.',
   'Pandan - Pampang':
-      'Connecting the Pandan area to the bustling Pampang public market, this route is essential for residents accessing local goods and services.',
+      'Connecting the Pandan area to the bustling Pampang public market, this route is essential for residents accessing local goods, services, and government offices. It passes through community centers, schools, and small commercial spots along the way.',
   'Sunset - Nepo':
       'The Sunset - Nepo route connects the residential area of Sunset with the downtown commercial hub around Nepo. It is an important access point for various government and business offices.',
   'Villa - Pampang - SM Telebastagan':

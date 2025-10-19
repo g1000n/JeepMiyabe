@@ -130,7 +130,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // 🌟 MODIFIED FUNCTION: Now sets the fixed green marker at current location 🌟
+  //MODIFIED FUNCTION: Now sets the fixed green marker at current location
   Future<void> _setStartToCurrentLocation() async {
     // 1. Set initial loading state and enter selection mode
     setState(() {
@@ -360,7 +360,7 @@ class _MapScreenState extends State<MapScreen> {
         _startPoint == null ||
         _endPoint == null) {
       debugPrint(
-          '🛑 HISTORY SAVE FAILED: User not authenticated or data incomplete.');
+          'HISTORY SAVE FAILED: User not authenticated or data incomplete.');
       return;
     }
 
@@ -381,11 +381,11 @@ class _MapScreenState extends State<MapScreen> {
         'route_data': routeJsonList,
       });
 
-      debugPrint('✅ Route history saved successfully for user $userId.');
+      debugPrint('Route history saved successfully for user $userId.');
     } on PostgrestException catch (e) {
-      debugPrint('🛑 SUPABASE ERROR saving history: ${e.message}');
+      debugPrint('SUPABASE ERROR saving history: ${e.message}');
     } catch (e) {
-      debugPrint('🛑 GENERAL EXCEPTION saving route history: $e');
+      debugPrint('GENERAL EXCEPTION saving route history: $e');
     }
   }
 
@@ -674,7 +674,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 🌟 "My Location" Button (Sets the Start Point marker and fills "From:") 🌟
+          // "My Location" Button (Sets the Start Point marker and fills "From:")
           Positioned(
             bottom: 30, // Positioned above the Route Details FAB
             right: 20,

@@ -210,7 +210,7 @@ class _WelcomePageState extends State<WelcomePage> {
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: Text(
-                    "❌ No internet connection. Please connect to Wi-Fi or cellular data to continue.",
+                    "No internet connection. Please connect to Wi-Fi or cellular data to continue.",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFFE4572E), // Primary accent color for visibility

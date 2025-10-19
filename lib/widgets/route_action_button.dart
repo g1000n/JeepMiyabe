@@ -7,10 +7,10 @@ class RouteActionButton extends StatelessWidget {
   final bool startPointSet;
   final bool endPointSet;
   final VoidCallback clearRoute;
-  // 💡 NEW PROPERTIES
+  //NEW PROPERTIES
   final bool isSelectingPoints;
   final VoidCallback enableSelection;
-  // 💡 END NEW PROPERTIES
+  //END NEW PROPERTIES
 
   const RouteActionButton({
     super.key,
@@ -19,10 +19,10 @@ class RouteActionButton extends StatelessWidget {
     required this.startPointSet,
     required this.endPointSet,
     required this.clearRoute,
-    // 💡 REQUIRED NEW PROPERTIES
+    //REQUIRED NEW PROPERTIES
     required this.isSelectingPoints,
     required this.enableSelection,
-    // 💡 END REQUIRED NEW PROPERTIES
+    //END REQUIRED NEW PROPERTIES
   });
 
   @override
@@ -38,7 +38,7 @@ class RouteActionButton extends StatelessWidget {
       color = Colors.grey;
       action = () {}; // No action while searching
     } 
-    // 🛑 FIX IMPLEMENTED HERE 🛑
+    //FIX IMPLEMENTED HERE
     else if (startPointSet && endPointSet) {
       // State 2: Route is set (before finding route or after finishing a route)
       text = 'Clear Route';
@@ -62,7 +62,6 @@ class RouteActionButton extends StatelessWidget {
       color = primaryColor;
       action = enableSelection; // Calls the function to enable map tapping
     }
-    // 🛑 END FIX 🛑
 
     return ElevatedButton.icon(
       onPressed: action,

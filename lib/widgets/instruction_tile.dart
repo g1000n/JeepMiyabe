@@ -26,7 +26,7 @@ class InstructionTile extends StatelessWidget {
         break;
       case SegmentType.TRANSFER:
         icon = Icons.swap_horiz;
-        // 🛠️ EDITED: Use the consistent kPrimaryColor for transfers instead of a hardcoded deepOrange
+        //EDITED: Use the consistent kPrimaryColor for transfers instead of a hardcoded deepOrange
         iconColor = kPrimaryColor; 
         break;
     }

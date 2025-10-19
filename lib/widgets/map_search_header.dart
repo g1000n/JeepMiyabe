@@ -29,7 +29,7 @@ class _MapSearchHeaderState extends State<MapSearchHeader> {
   @override
   void initState() {
     super.initState();
-    // ✅ Keep: Listener to ensure suggestions update as user types
+    //Keep: Listener to ensure suggestions update as user types
     _controller.addListener(_updateSuggestion);
   }
 

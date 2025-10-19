@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io'; // 👈 FIX 1: Import dart:io for SocketException
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -67,11 +67,11 @@ class _MFAPageState extends State<MFAPage> {
           ),
         );
       }
-    } on SocketException catch (_) { // 👈 FIX 2: Handle network connection error
+    } on SocketException catch (_) { // FIX 2: Handle network connection error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Please check your internet connection and try again. 🌐"),
+            content: Text("Please check your internet connection and try again."),
             backgroundColor: Colors.red,
           ),
         );
@@ -132,7 +132,7 @@ class _MFAPageState extends State<MFAPage> {
           ),
         );
       }
-    } on SocketException catch (_) { // 👈 FIX 2: Handle network connection error
+    } on SocketException catch (_) { //Handle network connection error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

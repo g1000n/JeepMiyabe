@@ -76,7 +76,7 @@ class HistoryScreen extends StatelessWidget {
                     itemCount: segments.length,
                     itemBuilder: (context, index) {
                       final segment = segments[index];
-                      // 💥 Renders the segment using your custom tile widget 💥
+                      // Renders the segment using custom tile widget
                       return InstructionTile(segment: segment); 
                     },
                   ),

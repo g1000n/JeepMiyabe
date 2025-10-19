@@ -143,7 +143,7 @@ Future<void> deleteFavoriteFromBackendById(
   }
 }
 
-// 🌟 FIX: NEW COORDINATE-BASED DELETE FUNCTION FOR MAPSCREEN 🌟
+//FIX: NEW COORDINATE-BASED DELETE FUNCTION FOR MAPSCREEN 
 /// Deletes a favorite place entry based on latitude, longitude, and user ID.
 /// This function is intended to be called by MapScreen for un-favoriting.
 Future<void> deleteFavoriteByCoordinates(

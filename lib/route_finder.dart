@@ -201,10 +201,10 @@ class RouteFinder {
           currentPath.addAll(nextEdge.polylinePoints.sublist(1));
         }
 
-        // ❌ FIX 1: Accumulate Distance using the calculated/stored distance in km.
+        //FIX 1: Accumulate Distance using the calculated/stored distance in km.
         currentDistanceKm += edgeDistanceKm; 
         
-        // ❌ FIX 2: Accumulate Duration using the edge's weight (time in minutes).
+        // FIX 2: Accumulate Duration using the edge's weight (time in minutes).
         currentDurationMin += nextEdge.weight; 
 
         // Final Segment: If this is the last edge, finalize the JEEPNEY segment
